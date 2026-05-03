@@ -166,6 +166,36 @@
                   "name": "Frankfurt (法兰克福)"
                 }
               ]
+            },
+            {
+              "id": "SN",
+              "name": "Saxony (萨克森州)",
+              "cities": [
+                {
+                  "id": "Falkenstein",
+                  "name": "Falkenstein (法尔肯施泰因)"
+                }
+              ]
+            },
+            {
+              "id": "BY",
+              "name": "Bavaria (巴伐利亚州)",
+              "cities": [
+                {
+                  "id": "Nuremberg",
+                  "name": "Nuremberg (纽伦堡)"
+                }
+              ]
+            },
+            {
+              "id": "BE",
+              "name": "Berlin (柏林州)",
+              "cities": [
+                {
+                  "id": "Berlin",
+                  "name": "Berlin (柏林)"
+                }
+              ]
             }
           ]
         },
@@ -316,6 +346,76 @@
                 {
                   "id": "Houston",
                   "name": "Houston (休斯顿)"
+                }
+              ]
+            },
+            {
+              "id": "IA",
+              "name": "Iowa (爱荷华州)",
+              "cities": [
+                {
+                  "id": "Council_Bluffs",
+                  "name": "Council Bluffs (康瑟尔布拉夫斯)"
+                }
+              ]
+            },
+            {
+              "id": "VA",
+              "name": "Virginia (弗吉尼亚州)",
+              "cities": [
+                {
+                  "id": "Ashburn",
+                  "name": "Ashburn (阿什本)"
+                }
+              ]
+            },
+            {
+              "id": "OH",
+              "name": "Ohio (俄亥俄州)",
+              "cities": [
+                {
+                  "id": "Columbus",
+                  "name": "Columbus (哥伦布)"
+                }
+              ]
+            },
+            {
+              "id": "NY",
+              "name": "New York (纽约州)",
+              "cities": [
+                {
+                  "id": "New_York",
+                  "name": "New York (纽约)"
+                }
+              ]
+            },
+            {
+              "id": "FL",
+              "name": "Florida (佛罗里达州)",
+              "cities": [
+                {
+                  "id": "Miami",
+                  "name": "Miami (迈阿密)"
+                }
+              ]
+            },
+            {
+              "id": "NJ",
+              "name": "New Jersey (新泽西州)",
+              "cities": [
+                {
+                  "id": "Newark",
+                  "name": "Newark (纽瓦克)"
+                }
+              ]
+            },
+            {
+              "id": "GA",
+              "name": "Georgia (佐治亚州)",
+              "cities": [
+                {
+                  "id": "Atlanta",
+                  "name": "Atlanta (亚特兰大)"
                 }
               ]
             }
