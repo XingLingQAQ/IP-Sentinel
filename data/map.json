@@ -208,6 +208,23 @@
             } 
           ] 
         },
+        { 
+          "id": "AE", 
+          "name": "United Arab Emirates (阿联酋)", 
+          "keyword_file": "kw_AE.txt", 
+          "states": [
+            { 
+              "id": "Default", 
+              "name": "Default State", 
+              "cities": [
+                { 
+                  "id": "Dubai", 
+                  "name": "Dubai (迪拜)" 
+                } 
+              ] 
+            } 
+          ] 
+        },
         {
           "id": "KR",
           "name": "South Korea (韩国)",
