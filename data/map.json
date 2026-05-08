@@ -43,7 +43,8 @@
         { 
           "id": "PH", 
           "name": "Philippines (菲律宾)", 
-          "keyword_file": "kw_PH.txt", "states": [
+          "keyword_file": "kw_PH.txt", 
+          "states": [
             { 
               "id": "Default", 
               "name": "Default State", 
@@ -51,6 +52,23 @@
                 { 
                   "id": "Manila", 
                   "name": "Manila (马尼拉)" 
+                } 
+              ] 
+            } 
+          ] 
+        },
+        { 
+          "id": "TH", 
+          "name": "Thailand (泰国)", 
+          "keyword_file": "kw_TH.txt", 
+          "states": [
+            { 
+              "id": "Default", 
+              "name": "Default State", 
+              "cities": [
+                { 
+                  "id": "Bangkok", 
+                  "name": "Bangkok (曼谷)" 
                 } 
               ] 
             } 
