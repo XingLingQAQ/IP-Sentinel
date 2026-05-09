@@ -1,0 +1,21 @@
+{
+  "region_name": "Macau (澳门)",
+  "google_module": {
+    "base_lat": 22.1987,
+    "base_lon": 113.5439,
+    "lang_params": "hl=zh-HK&gl=MO",
+    "valid_url_suffix": "com.mo"
+  },
+  "trust_module": {
+    "white_urls": [],
+    "static_urls": [
+      "https://www.gov.mo/",
+      "https://www.macau.gov.mo/",
+      "https://www.dsat.gov.mo/",
+      "https://www.bocmacau.com/",
+      "https://www.umac.mo/",
+      "https://www.ctm.net/",
+      "https://www.macaudailytimes.com.mo/"
+    ]
+  }
+}
