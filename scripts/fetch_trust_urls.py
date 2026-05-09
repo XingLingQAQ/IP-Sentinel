@@ -34,19 +34,19 @@ RSS_FEEDS = {
     "MY": ["https://news.google.com/rss?hl=en-MY&gl=MY&ceid=MY:en"],
     "NG": ["https://punchng.com/feed/", "https://www.vanguardngr.com/feed/"],
     "TR": ["https://www.hurriyet.com.tr/rss/anasayfa"],
-    # ====== 下方为 PR #47 亚洲与中东新战区扩充源 ======
-    "PH": ["https://www.gmanetwork.com/news/rss/news/"],
+    # ====== 下方为 PR #47 亚洲与中东新战区扩充源 (已通过实机验证) ======
+    "PH": ["https://news.google.com/rss?hl=en-PH&gl=PH"],
     "TH": ["https://www.bangkokpost.com/rss/data/topstories.xml"],
     "ID": ["https://www.antaranews.com/rss/terkini.xml"],
     "IN": ["https://timesofindia.indiatimes.com/rssfeedstopstories.cms"],
-    "AE": ["https://gulfnews.com/arc/outboundfeeds/rss/uae.xml"],
-    "SA": ["https://www.arabnews.com/rss.xml"],
+    "AE": ["https://news.google.com/rss?hl=en-AE&gl=AE"],
+    "SA": ["https://news.google.com/rss?hl=ar-SA&gl=SA"],
     "BD": ["https://www.thedailystar.net/frontpage/rss.xml"],
-    "NP": ["https://kathmandupost.com/feed/"],
-    "KH": ["https://www.khmertimeskh.com/feed/"],
-    "MM": ["https://www.irrawaddy.com/feed"],
-    "LA": ["https://kpl.gov.la/Rss"],
-    "MN": ["https://montsame.mn/en/rss"]
+    "NP": ["https://news.google.com/rss?hl=en-NP&gl=NP"],
+    "KH": ["https://www.cambodiadaily.com/feed/"],
+    "MM": ["https://news.google.com/rss?hl=en-MM&gl=MM"],
+    "LA": ["https://news.google.com/rss?hl=en-LA&gl=LA"],
+    "MN": ["https://news.google.com/rss?hl=en-MN&gl=MN"]
 }
 
 def fetch_rss_links(region_code, max_items=15):
