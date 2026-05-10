@@ -40,207 +40,209 @@
             }
           ]
         },
-        { 
-          "id": "PH", 
-          "name": "Philippines (菲律宾)", 
-          "keyword_file": "kw_PH.txt", 
+        {
+          "id": "PH",
+          "name": "Philippines (菲律宾)",
+          "keyword_file": "kw_PH.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Manila", 
-                  "name": "Manila (马尼拉)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Manila",
+                  "name": "Manila (马尼拉)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "TH", 
-          "name": "Thailand (泰国)", 
-          "keyword_file": "kw_TH.txt", 
+        {
+          "id": "TH",
+          "name": "Thailand (泰国)",
+          "keyword_file": "kw_TH.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Bangkok", 
-                  "name": "Bangkok (曼谷)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Bangkok",
+                  "name": "Bangkok (曼谷)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "KH", 
-          "name": "Cambodia (柬埔寨)", 
-          "keyword_file": "kw_KH.txt", 
+        {
+          "id": "KH",
+          "name": "Cambodia (柬埔寨)",
+          "keyword_file": "kw_KH.txt",
           "states": [
-            { "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { "id": "PhnomPenh", 
-                  "name": "Phnom Penh (金边)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "PhnomPenh",
+                  "name": "Phnom Penh (金边)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "MM", 
-          "name": "Myanmar (缅甸)", 
-          "keyword_file": "kw_MM.txt", 
+        {
+          "id": "MM",
+          "name": "Myanmar (缅甸)",
+          "keyword_file": "kw_MM.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Yangon", 
-                  "name": "Yangon (仰光)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Yangon",
+                  "name": "Yangon (仰光)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "LA", 
-          "name": "Laos (老挝)", 
-          "keyword_file": "kw_LA.txt", 
+        {
+          "id": "LA",
+          "name": "Laos (老挝)",
+          "keyword_file": "kw_LA.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Vientiane", 
-                  "name": "Vientiane (万象)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Vientiane",
+                  "name": "Vientiane (万象)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "ID", 
-          "name": "Indonesia (印度尼西亚)", 
-          "keyword_file": "kw_ID.txt", 
+        {
+          "id": "ID",
+          "name": "Indonesia (印度尼西亚)",
+          "keyword_file": "kw_ID.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Jakarta", 
-                  "name": "Jakarta (雅加达)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Jakarta",
+                  "name": "Jakarta (雅加达)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "IN", 
-          "name": "India (印度)", 
-          "keyword_file": "kw_IN.txt", 
+        {
+          "id": "IN",
+          "name": "India (印度)",
+          "keyword_file": "kw_IN.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Delhi", 
-                  "name": "Delhi (新德里)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Delhi",
+                  "name": "Delhi (新德里)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "MN", 
-          "name": "Mongolia (蒙古)", 
-          "keyword_file": "kw_MN.txt", 
+        {
+          "id": "MN",
+          "name": "Mongolia (蒙古)",
+          "keyword_file": "kw_MN.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Ulaanbaatar", 
-                  "name": "Ulaanbaatar (乌兰巴托)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Ulaanbaatar",
+                  "name": "Ulaanbaatar (乌兰巴托)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "NP", 
-          "name": "Nepal (尼泊尔)", 
-          "keyword_file": "kw_NP.txt", 
+        {
+          "id": "NP",
+          "name": "Nepal (尼泊尔)",
+          "keyword_file": "kw_NP.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Kathmandu", 
-                  "name": "Kathmandu (加德满都)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Kathmandu",
+                  "name": "Kathmandu (加德满都)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "BD", 
-          "name": "Bangladesh (孟加拉)", 
-          "keyword_file": "kw_BD.txt", 
+        {
+          "id": "BD",
+          "name": "Bangladesh (孟加拉)",
+          "keyword_file": "kw_BD.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Dhaka", 
-                  "name": "Dhaka (达卡)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Dhaka",
+                  "name": "Dhaka (达卡)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "AE", 
-          "name": "United Arab Emirates (阿联酋)", 
-          "keyword_file": "kw_AE.txt", 
+        {
+          "id": "AE",
+          "name": "United Arab Emirates (阿联酋)",
+          "keyword_file": "kw_AE.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Dubai", 
-                  "name": "Dubai (迪拜)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Dubai",
+                  "name": "Dubai (迪拜)"
+                }
+              ]
+            }
+          ]
         },
-        { 
-          "id": "SA", 
-          "name": "Saudi Arabia (沙特阿拉伯)", 
-          "keyword_file": "kw_SA.txt", 
+        {
+          "id": "SA",
+          "name": "Saudi Arabia (沙特阿拉伯)",
+          "keyword_file": "kw_SA.txt",
           "states": [
-            { 
-              "id": "Default", 
-              "name": "Default State", 
+            {
+              "id": "Default",
+              "name": "Default State",
               "cities": [
-                { 
-                  "id": "Riyadh", 
-                  "name": "Riyadh (利雅得)" 
-                } 
-              ] 
-            } 
-          ] 
+                {
+                  "id": "Riyadh",
+                  "name": "Riyadh (利雅得)"
+                }
+              ]
+            }
+          ]
         },
         {
           "id": "KR",
@@ -498,6 +500,16 @@
           "keyword_file": "kw_US.txt",
           "states": [
             {
+              "id": "AZ",
+              "name": "Arizona (亚利桑那州)",
+              "cities": [
+                {
+                  "id": "Phoenix",
+                  "name": "Phoenix (凤凰城)"
+                }
+              ]
+            },
+            {
               "id": "CA",
               "name": "California (加州)",
               "cities": [
@@ -512,12 +524,62 @@
               ]
             },
             {
+              "id": "FL",
+              "name": "Florida (佛罗里达州)",
+              "cities": [
+                {
+                  "id": "Miami",
+                  "name": "Miami (迈阿密)"
+                }
+              ]
+            },
+            {
+              "id": "GA",
+              "name": "Georgia (佐治亚州)",
+              "cities": [
+                {
+                  "id": "Atlanta",
+                  "name": "Atlanta (亚特兰大)"
+                }
+              ]
+            },
+            {
+              "id": "Hawaii",
+              "name": "Hawaii",
+              "cities": [
+                {
+                  "id": "Honolulu",
+                  "name": "Honolulu (檀香山)"
+                }
+              ]
+            },
+            {
+              "id": "IA",
+              "name": "Iowa (爱荷华州)",
+              "cities": [
+                {
+                  "id": "Council_Bluffs",
+                  "name": "Council Bluffs (康瑟尔布拉夫斯)"
+                }
+              ]
+            },
+            {
               "id": "IL",
               "name": "Illinois (伊利诺伊州)",
               "cities": [
                 {
                   "id": "Warrenville",
                   "name": "Warrenville (沃伦维尔)"
+                }
+              ]
+            },
+            {
+              "id": "KS",
+              "name": "Kansas (堪萨斯州)",
+              "cities": [
+                {
+                  "id": "Kansas_City",
+                  "name": "Kansas City (堪萨斯城)"
                 }
               ]
             },
@@ -532,6 +594,16 @@
               ]
             },
             {
+              "id": "NJ",
+              "name": "New Jersey (新泽西州)",
+              "cities": [
+                {
+                  "id": "Newark",
+                  "name": "Newark (纽瓦克)"
+                }
+              ]
+            },
+            {
               "id": "NV",
               "name": "Nevada (内华达州)",
               "cities": [
@@ -542,42 +614,32 @@
               ]
             },
             {
+              "id": "NY",
+              "name": "New York (纽约州)",
+              "cities": [
+                {
+                  "id": "New_York",
+                  "name": "New York (纽约)"
+                }
+              ]
+            },
+            {
+              "id": "OH",
+              "name": "Ohio (俄亥俄州)",
+              "cities": [
+                {
+                  "id": "Columbus",
+                  "name": "Columbus (哥伦布)"
+                }
+              ]
+            },
+            {
               "id": "OR",
               "name": "Oregon (俄勒冈州)",
               "cities": [
                 {
                   "id": "Bend",
                   "name": "Bend (本德)"
-                }
-              ]
-            },
-            {
-              "id": "UT",
-              "name": "Utah (犹他州)",
-              "cities": [
-                {
-                  "id": "Salt_Lake_City",
-                  "name": "Salt Lake City (盐湖城)"
-                }
-              ]
-            },
-            {
-              "id": "WA",
-              "name": "Washington (华盛顿州)",
-              "cities": [
-                {
-                  "id": "Seattle",
-                  "name": "Seattle (西雅图)"
-                }
-              ]
-            },
-            {
-              "id": "AZ",
-              "name": "Arizona (亚利桑那州)",
-              "cities": [
-                {
-                  "id": "Phoenix",
-                  "name": "Phoenix (凤凰城)"
                 }
               ]
             },
@@ -596,12 +658,12 @@
               ]
             },
             {
-              "id": "IA",
-              "name": "Iowa (爱荷华州)",
+              "id": "UT",
+              "name": "Utah (犹他州)",
               "cities": [
                 {
-                  "id": "Council_Bluffs",
-                  "name": "Council Bluffs (康瑟尔布拉夫斯)"
+                  "id": "Salt_Lake_City",
+                  "name": "Salt Lake City (盐湖城)"
                 }
               ]
             },
@@ -616,62 +678,12 @@
               ]
             },
             {
-              "id": "OH",
-              "name": "Ohio (俄亥俄州)",
+              "id": "WA",
+              "name": "Washington (华盛顿州)",
               "cities": [
                 {
-                  "id": "Columbus",
-                  "name": "Columbus (哥伦布)"
-                }
-              ]
-            },
-            {
-              "id": "NY",
-              "name": "New York (纽约州)",
-              "cities": [
-                {
-                  "id": "New_York",
-                  "name": "New York (纽约)"
-                }
-              ]
-            },
-            {
-              "id": "FL",
-              "name": "Florida (佛罗里达州)",
-              "cities": [
-                {
-                  "id": "Miami",
-                  "name": "Miami (迈阿密)"
-                }
-              ]
-            },
-            {
-              "id": "NJ",
-              "name": "New Jersey (新泽西州)",
-              "cities": [
-                {
-                  "id": "Newark",
-                  "name": "Newark (纽瓦克)"
-                }
-              ]
-            },
-            {
-              "id": "Hawaii",
-              "name": "Hawaii",
-              "cities": [
-                { 
-                  "id": "Honolulu", 
-                  "name": "Honolulu (檀香山)" 
-                }
-              ]
-            },
-            {
-              "id": "GA",
-              "name": "Georgia (佐治亚州)",
-              "cities": [
-                {
-                  "id": "Atlanta",
-                  "name": "Atlanta (亚特兰大)"
+                  "id": "Seattle",
+                  "name": "Seattle (西雅图)"
                 }
               ]
             }
