@@ -1,3 +1,5 @@
+nba
+afghanistan
 1
 inter miami vs philadelphia
 villarreal vs atlético madrid
@@ -20,7 +22,6 @@ bologna vs inter
 al-fayha vs al-hilal
 google
 al-nassr vs damac
-nba
 freiburg vs aston villa
 saroj khan
 whatsapp
@@ -97,4 +98,3 @@ burnley vs aston villa
 nottm forest vs newcastle
 palace vs everton
 mothers day
-joshua van vs tatsuro taira
