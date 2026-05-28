@@ -6,6 +6,8 @@
 # ==========================================================
 
 set -e
+# [容灾覆盖] curl/网络失败不应阻止主服务启动
+set +e
 
 MASTER_DIR="/opt/ip_sentinel_master"
 DB_FILE="${MASTER_DIR}/data/sentinel.db"
@@ -110,21 +112,8 @@ fi
 export WEBHOOK_SECRET
 
 # ----------------------------------------------------------
-# [Webhook 注册] 每次启动时向 Telegram 注册 Webhook 地址
-# ----------------------------------------------------------
-echo "[Docker] 正在注册 Telegram Webhook..."
-WEBHOOK_RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
-    -d "url=${WEBHOOK_URL}/webhook" \
-    -d "allowed_updates=[\"message\",\"callback_query\"]" \
-    -d "secret_token=${WEBHOOK_SECRET}")
-if echo "$WEBHOOK_RESULT" | grep -q '"ok":true'; then
-    echo "[Docker] Webhook 注册成功: ${WEBHOOK_URL}/webhook"
-else
-    echo "[Docker] 警告: Webhook 注册可能失败: $WEBHOOK_RESULT"
-fi
-
-# ----------------------------------------------------------
-# [引擎启动] 前台运行 webhook_master.py 事件驱动服务
+# [引擎启动] 先启动 Python 服务，再注册 Webhook
+# 必须先让服务在线，Telegram 才能验证 Webhook 端点可达
 # ----------------------------------------------------------
 echo "[Docker] 正在启动 IP-Sentinel Master 控制中枢 (Webhook 模式)..."
 
@@ -132,5 +121,36 @@ export TG_TOKEN DB_FILE MASTER_DIR MASTER_VERSION IS_OFFICIAL_GATEWAY ENABLE_MAS
 
 python3 "${MASTER_DIR}/webhook_master.py" &
 MASTER_PID=$!
+
+# ----------------------------------------------------------
+# [Webhook 注册] 等待 Python 服务就绪后再注册
+# 最多等待 30 秒，失败后仍继续运行（服务本身正常）
+# ----------------------------------------------------------
+echo "[Docker] 等待 Webhook 服务就绪..."
+_RETRY=0
+while [ $_RETRY -lt 15 ]; do
+    if curl -sf --connect-timeout 2 "http://127.0.0.1:7860/health" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+    _RETRY=$((_RETRY + 1))
+done
+
+echo "[Docker] 正在注册 Telegram Webhook..."
+WEBHOOK_RESULT=$(curl -s --connect-timeout 10 -m 15 \
+    -X POST "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
+    -d "url=${WEBHOOK_URL}/webhook" \
+    -d "allowed_updates=[\"message\",\"callback_query\"]" \
+    -d "secret_token=${WEBHOOK_SECRET}" 2>&1)
+_CURL_CODE=$?
+
+if [ $_CURL_CODE -ne 0 ]; then
+    echo "[Docker] 警告: Webhook 注册网络错误 (curl exit ${_CURL_CODE})，服务已启动但尚未注册。"
+    echo "[Docker] 容器完全就绪后可手动重试: curl -X POST https://api.telegram.org/bot\${TG_TOKEN}/setWebhook -d url=\${WEBHOOK_URL}/webhook"
+elif echo "$WEBHOOK_RESULT" | grep -q '"ok":true'; then
+    echo "[Docker] Webhook 注册成功: ${WEBHOOK_URL}/webhook"
+else
+    echo "[Docker] 警告: Webhook 注册失败: $WEBHOOK_RESULT"
+fi
 
 wait "$MASTER_PID"
