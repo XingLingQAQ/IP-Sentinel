@@ -40,6 +40,14 @@ jobs:
         run: |
           MASTER_VERSION=$(grep "^MASTER_VERSION=" version.txt | cut -d'=' -f2 | tr -d '[:space:]')
           AGENT_VERSION=$(grep "^AGENT_VERSION=" version.txt | cut -d'=' -f2 | tr -d '[:space:]')
+          if [ -z "$MASTER_VERSION" ]; then
+            echo "::error::MASTER_VERSION not found in version.txt"
+            exit 1
+          fi
+          if [ -z "$AGENT_VERSION" ]; then
+            echo "::error::AGENT_VERSION not found in version.txt"
+            exit 1
+          fi
           echo "master_version=${MASTER_VERSION}" >> $GITHUB_OUTPUT
           echo "agent_version=${AGENT_VERSION}" >> $GITHUB_OUTPUT
           echo "Master Version: ${MASTER_VERSION}"
