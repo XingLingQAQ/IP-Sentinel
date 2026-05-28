@@ -72,7 +72,7 @@ if [ ! -f "$CONF_FILE" ]; then
     IS_OFFICIAL_GATEWAY="${IS_OFFICIAL_GATEWAY:-false}"
     ENABLE_MASTER_OTA="${ENABLE_MASTER_OTA:-false}"
 
-    cat > "$CONF_FILE" <<EOF
+    (umask 077; cat > "$CONF_FILE" <<EOF
 # IP-Sentinel Master 容器化配置 (自动生成)
 MASTER_VERSION="$MASTER_VERSION"
 TG_TOKEN="$TG_TOKEN"
@@ -81,7 +81,7 @@ MASTER_DIR="$MASTER_DIR"
 IS_OFFICIAL_GATEWAY="$IS_OFFICIAL_GATEWAY"
 ENABLE_MASTER_OTA="$ENABLE_MASTER_OTA"
 EOF
-    chmod 600 "$CONF_FILE"
+    )
     echo "[Docker] 配置文件已生成: $CONF_FILE"
 fi
 

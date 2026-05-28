@@ -29,6 +29,18 @@ trap cleanup SIGTERM SIGINT
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "[Docker] 未检测到配置文件，正在从环境变量生成..."
 
+    if [ -z "$TG_TOKEN" ]; then
+        echo "[Docker] 致命错误: 环境变量 TG_TOKEN 未设置！"
+        echo "请通过 docker run -e TG_TOKEN=xxx 或 docker-compose 环境变量传入。"
+        exit 1
+    fi
+
+    if [ -z "$CHAT_ID" ]; then
+        echo "[Docker] 致命错误: 环境变量 CHAT_ID 未设置！"
+        echo "请通过 docker run -e CHAT_ID=xxx 或 docker-compose 环境变量传入。"
+        exit 1
+    fi
+
     AGENT_VERSION="${AGENT_VERSION:-4.1.6}"
     REGION_CODE="${REGION_CODE:-US}"
     CITY_ID="${CITY_ID:-LosAngeles}"
@@ -47,7 +59,12 @@ if [ ! -f "$CONFIG_FILE" ]; then
 
     # [身份锚定] 生成节点主键
     if [ -z "$PUBLIC_IP" ]; then
-        PUBLIC_IP=$(curl -4 -s -m 5 api.ip.sb/ip 2>/dev/null | tr -d '[:space:]' || echo "127.0.0.1")
+        _detected_ip=$(curl -4 -s -m 5 api.ip.sb/ip 2>/dev/null | tr -d '[:space:]')
+        if echo "$_detected_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            PUBLIC_IP="$_detected_ip"
+        else
+            PUBLIC_IP="127.0.0.1"
+        fi
     fi
     IP_HASH=$(echo "${PUBLIC_IP}" | md5sum | cut -c 1-4 | tr 'a-z' 'A-Z')
     NODE_NAME="$(hostname | tr -cd 'a-zA-Z0-9' | cut -c 1-10)-${IP_HASH}"
@@ -77,7 +94,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
         TG_API_URL=""
     fi
 
-    cat > "$CONFIG_FILE" <<EOF
+    (umask 077; cat > "$CONFIG_FILE" <<EOF
 # IP-Sentinel 容器化配置 (自动生成)
 AGENT_VERSION="$AGENT_VERSION"
 REGION_CODE="$REGION_CODE"
@@ -107,7 +124,7 @@ NODE_ALIAS="$NODE_ALIAS"
 
 ENABLE_OTA="$ENABLE_OTA"
 EOF
-    chmod 600 "$CONFIG_FILE"
+    )
     echo "[Docker] 配置文件已生成: $CONFIG_FILE"
 fi
 
