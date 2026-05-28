@@ -2,7 +2,7 @@
 
 # ==========================================================
 # 脚本名称: docker-entrypoint.sh (Master)
-# 核心功能: 容器启动入口，初始化数据库与配置，前台运行中枢引擎
+# 核心功能: 容器启动入口，初始化数据库与配置，注册 Webhook，前台运行中枢引擎
 # ==========================================================
 
 set -e
@@ -21,6 +21,25 @@ cleanup() {
     exit 0
 }
 trap cleanup SIGTERM SIGINT
+
+# ----------------------------------------------------------
+# [环境变量校验] 检查必需的环境变量
+# ----------------------------------------------------------
+if [ -z "$TG_TOKEN" ]; then
+    echo "[Docker] 致命错误: 环境变量 TG_TOKEN 未设置！"
+    echo "请通过 docker run -e TG_TOKEN=xxx 或 docker-compose 环境变量传入。"
+    exit 1
+fi
+
+if [ -z "$WEBHOOK_URL" ]; then
+    echo "[Docker] 致命错误: 环境变量 WEBHOOK_URL 未设置！"
+    echo "请通过 docker run -e WEBHOOK_URL=https://your-domain.com 或 docker-compose 环境变量传入。"
+    exit 1
+fi
+
+if [ -z "$CHAT_ID" ]; then
+    echo "[Docker] 警告: 环境变量 CHAT_ID 未设置，部分功能可能受限。"
+fi
 
 # ----------------------------------------------------------
 # [数据库初始化] 若 SQLite 库不存在则创建表结构基线
@@ -62,13 +81,7 @@ fi
 if [ ! -f "$CONF_FILE" ]; then
     echo "[Docker] 未检测到配置文件，正在从环境变量生成..."
 
-    if [ -z "$TG_TOKEN" ]; then
-        echo "[Docker] 致命错误: 环境变量 TG_TOKEN 未设置！"
-        echo "请通过 docker run -e TG_TOKEN=xxx 或 docker-compose 环境变量传入。"
-        exit 1
-    fi
-
-    MASTER_VERSION="${MASTER_VERSION:-4.1.1}"
+    MASTER_VERSION="${MASTER_VERSION:-5.0.0}"
     IS_OFFICIAL_GATEWAY="${IS_OFFICIAL_GATEWAY:-false}"
     ENABLE_MASTER_OTA="${ENABLE_MASTER_OTA:-false}"
 
@@ -80,16 +93,34 @@ DB_FILE="$DB_FILE"
 MASTER_DIR="$MASTER_DIR"
 IS_OFFICIAL_GATEWAY="$IS_OFFICIAL_GATEWAY"
 ENABLE_MASTER_OTA="$ENABLE_MASTER_OTA"
+WEBHOOK_URL="$WEBHOOK_URL"
+CHAT_ID="${CHAT_ID:-}"
 EOF
     )
     echo "[Docker] 配置文件已生成: $CONF_FILE"
 fi
 
 # ----------------------------------------------------------
-# [引擎启动] 前台运行 tg_master.sh 长轮询服务
+# [Webhook 注册] 每次启动时向 Telegram 注册 Webhook 地址
 # ----------------------------------------------------------
-echo "[Docker] 正在启动 IP-Sentinel Master 控制中枢..."
-bash "${MASTER_DIR}/tg_master.sh" &
+echo "[Docker] 正在注册 Telegram Webhook..."
+WEBHOOK_RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
+    -d "url=${WEBHOOK_URL}/webhook" \
+    -d "allowed_updates=[\"message\",\"callback_query\"]")
+if echo "$WEBHOOK_RESULT" | grep -q '"ok":true'; then
+    echo "[Docker] Webhook 注册成功: ${WEBHOOK_URL}/webhook"
+else
+    echo "[Docker] 警告: Webhook 注册可能失败: $WEBHOOK_RESULT"
+fi
+
+# ----------------------------------------------------------
+# [引擎启动] 前台运行 webhook_master.py 事件驱动服务
+# ----------------------------------------------------------
+echo "[Docker] 正在启动 IP-Sentinel Master 控制中枢 (Webhook 模式)..."
+
+export TG_TOKEN DB_FILE MASTER_DIR MASTER_VERSION IS_OFFICIAL_GATEWAY ENABLE_MASTER_OTA WEBHOOK_URL CHAT_ID
+
+python3 "${MASTER_DIR}/webhook_master.py" &
 MASTER_PID=$!
 
 wait "$MASTER_PID"
