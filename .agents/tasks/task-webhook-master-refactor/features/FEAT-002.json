@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Create core/heartbeat.sh - Agent heartbeat script that sends periodic keepalive POSTs to Master's /heartbeat endpoint. Also update core/install.sh and core/docker-entrypoint.sh to inject the heartbeat cron entry (every 10 minutes), and add MASTER_WEBHOOK_URL config variable.",
+  "status": "completed",
+  "steps": [
+    "Create core/heartbeat.sh: Read config from /opt/ip_sentinel/config.conf, collect system status (node_name, agent_version, public_ip, agent_port, region_code, uptime, load average, timestamp), build JSON payload, sign with HMAC-SHA256 using CHAT_ID as key (sign the JSON body string with timestamp), POST to ${MASTER_WEBHOOK_URL}/heartbeat with signature in X-Signature and X-Timestamp headers. Gracefully handle failures (log warning, exit 0).",
+    "In core/heartbeat.sh: Skip execution if MASTER_WEBHOOK_URL is not set in config (backward compatible with old configs that dont have this variable).",
+    "Modify core/install.sh: After existing config.conf generation (the 'cat > $CONFIG_FILE' heredoc), add a new line MASTER_WEBHOOK_URL=\"\" (empty by default, user can set later). Also add a prompt during TG configuration asking for Master Webhook URL (optional, for heartbeat).",
+    "Modify core/install.sh: In the crontab injection section (both systemd timer path and cron fallback path), add a heartbeat entry: */10 * * * * /bin/bash ${INSTALL_DIR}/core/heartbeat.sh >/dev/null 2>&1",
+    "Modify core/install.sh: In the file download section [6/7], add: curl -fsSL ${REPO_RAW_URL}/core/heartbeat.sh -o ${TMP_CORE}/heartbeat.sh",
+    "Modify core/docker-entrypoint.sh: Add heartbeat cron entry (*/10 * * * *) to CRON_CONTENT variable alongside existing runner.sh and updater.sh entries",
+    "Modify core/docker-entrypoint.sh: Add MASTER_WEBHOOK_URL environment variable handling in the config generation section (with default empty string)",
+    "In core/heartbeat.sh: Include the node_alias in the payload so Master can display friendly names"
+  ],
+  "acceptance_criteria": [
+    "core/heartbeat.sh exists and passes 'bash -n core/heartbeat.sh' syntax validation",
+    "core/heartbeat.sh sources config.conf, checks for MASTER_WEBHOOK_URL, sends POST with HMAC signature",
+    "core/heartbeat.sh exits 0 gracefully when MASTER_WEBHOOK_URL is empty or unset",
+    "core/install.sh includes heartbeat.sh in the download list",
+    "core/install.sh injects heartbeat cron entry (*/10) in both systemd and non-systemd paths",
+    "core/docker-entrypoint.sh includes heartbeat cron entry",
+    "MASTER_WEBHOOK_URL is added to config.conf template in both install.sh and docker-entrypoint.sh"
+  ],
+  "verification": [
+    "Run: bash -n core/heartbeat.sh",
+    "Run: bash -n core/install.sh",
+    "Run: bash -n core/docker-entrypoint.sh",
+    "Grep core/install.sh for 'heartbeat' to confirm cron entries and download",
+    "Grep core/docker-entrypoint.sh for 'heartbeat' to confirm cron entry"
+  ],
+  "blocked_reason": null,
+  "findings": "Created core/heartbeat.sh with HMAC-SHA256 signing, PID lock, and graceful error handling. Added heartbeat to all 3 scheduler paths in install.sh (systemd timer, cron, Alpine restricted scheduler). Added heartbeat cron entry and MASTER_WEBHOOK_URL env var to docker-entrypoint.sh. Added COPY heartbeat.sh to core/Dockerfile. All bash syntax checks pass, both Docker images (master + agent) build successfully."
+}
