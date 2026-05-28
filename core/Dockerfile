@@ -34,6 +34,7 @@ COPY core/mod_google.sh /opt/ip_sentinel/core/
 COPY core/mod_trust.sh /opt/ip_sentinel/core/
 COPY core/mod_quality.sh /opt/ip_sentinel/core/
 COPY core/uninstall.sh /opt/ip_sentinel/core/
+COPY core/heartbeat.sh /opt/ip_sentinel/core/
 
 # [数据部署] 复制关键词库、地区规则、UA 池等冷数据
 COPY data/ /opt/ip_sentinel/data/

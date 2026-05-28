@@ -56,6 +56,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
     CHAT_ID="${CHAT_ID:-}"
     IP_PREF="${IP_PREF:-4}"
     BIND_IP="${BIND_IP:-}"
+    MASTER_WEBHOOK_URL="${MASTER_WEBHOOK_URL:-}"
 
     # [身份锚定] 生成节点主键
     if [ -z "$PUBLIC_IP" ]; then
@@ -123,6 +124,8 @@ NODE_NAME="$NODE_NAME"
 NODE_ALIAS="$NODE_ALIAS"
 
 ENABLE_OTA="$ENABLE_OTA"
+
+MASTER_WEBHOOK_URL="$MASTER_WEBHOOK_URL"
 EOF
     )
     echo "[Docker] 配置文件已生成: $CONFIG_FILE"
@@ -136,6 +139,7 @@ echo "[Docker] 正在配置定时任务调度..."
 # 构建 crontab 内容: runner.sh 每20分钟, updater.sh 每日一次
 CRON_CONTENT="*/20 * * * * /bin/bash ${INSTALL_DIR}/core/runner.sh >> ${LOG_FILE} 2>&1
 0 4 * * * /bin/bash ${INSTALL_DIR}/core/updater.sh >> ${LOG_FILE} 2>&1
+*/10 * * * * /bin/bash ${INSTALL_DIR}/core/heartbeat.sh >> ${LOG_FILE} 2>&1
 "
 
 echo "$CRON_CONTENT" | crontab -

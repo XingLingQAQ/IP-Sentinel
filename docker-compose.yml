@@ -1,16 +1,17 @@
 # ==========================================================
 # IP-Sentinel Docker Compose 部署配置
-# 包含 Master 控制中枢与 Agent 边缘节点两大核心服务
+# Master 控制中枢 - Webhook 事件驱动架构
 # ==========================================================
 # 使用方法:
 #   1. 复制此文件并根据实际情况修改环境变量
-#   2. 执行 docker compose up -d 启动全部服务
+#   2. 执行 docker compose up -d 启动服务
 #   3. 查看日志: docker compose logs -f
 # ==========================================================
+# 注意: 仅 Master 需要 Docker 部署，Agent 直接安装在目标机器上
 
 services:
   # ----------------------------------------------------------
-  # [控制中枢] Master - Telegram Bot 长轮询服务
+  # [控制中枢] Master - Telegram Bot Webhook 事件驱动服务
   # 负责全局指令下发、节点管理、OTA 调度
   # ----------------------------------------------------------
   master:
@@ -25,6 +26,8 @@ services:
       - TG_TOKEN=${TG_TOKEN}
       # [必填] 管理员 Chat ID (通过 @userinfobot 获取)
       - CHAT_ID=${CHAT_ID}
+      # [必填] Webhook 公网 URL (如 https://your-domain.com)
+      - WEBHOOK_URL=${WEBHOOK_URL}
       # [可选] 是否启用中枢 OTA 自更新 (默认关闭)
       - ENABLE_MASTER_OTA=${ENABLE_MASTER_OTA:-false}
       # [可选] 是否为官方公共网关模式 (默认关闭)
@@ -32,53 +35,12 @@ services:
     volumes:
       # SQLite 数据库持久化，防止容器重建时丢失节点数据
       - sentinel-data:/opt/ip_sentinel_master/data
-
-  # ----------------------------------------------------------
-  # [边缘节点] Agent - Webhook 监听 + 定时养护引擎
-  # 负责 IP 质量监测、Google 验证码触发检测、信任度评估
-  # ----------------------------------------------------------
-  agent:
-    build:
-      context: .
-      dockerfile: core/Dockerfile
-    image: ghcr.io/xinglingqaq/ip-sentinel-agent:latest
-    container_name: ip-sentinel-agent
-    restart: unless-stopped
-    environment:
-      # [必填] Telegram Bot Token
-      - TG_TOKEN=${TG_TOKEN}
-      # [必填] 管理员 Chat ID
-      - CHAT_ID=${CHAT_ID}
-      # [必填] 地区代码 (如 US, JP, HK, SG 等)
-      - REGION_CODE=${REGION_CODE:-US}
-      # [必填] 城市 ID (对应 data/regions/ 下的 JSON 文件名)
-      - CITY_ID=${CITY_ID:-LosAngeles}
-      # [必填] 州/省 ID
-      - STATE_ID=${STATE_ID:-CA}
-      # [必填] 国家 ID
-      - COUNTRY_ID=${COUNTRY_ID:-US}
-      # [可选] 公网 IP (留空将自动探测)
-      - PUBLIC_IP=${PUBLIC_IP:-}
-      # [可选] Webhook 监听端口
-      - AGENT_PORT=${AGENT_PORT:-9527}
-      # [可选] 节点展示别名
-      - NODE_ALIAS=${NODE_ALIAS:-docker-agent}
-      # [可选] 是否启用 Google 验证码检测模块
-      - ENABLE_GOOGLE=${ENABLE_GOOGLE:-true}
-      # [可选] 是否启用信任度评估模块
-      - ENABLE_TRUST=${ENABLE_TRUST:-true}
-      # [可选] 是否允许 OTA 远程升级
-      - ENABLE_OTA=${ENABLE_OTA:-false}
-    volumes:
-      # 运行日志持久化
-      - agent-logs:/opt/ip_sentinel/logs
     ports:
-      # Webhook 监听端口映射
-      - "9527:9527"
+      # Webhook HTTP 服务端口映射
+      - "7860:7860"
 
 # ----------------------------------------------------------
 # [数据卷] 命名卷声明，由 Docker 引擎管理生命周期
 # ----------------------------------------------------------
 volumes:
   sentinel-data:
-  agent-logs:
