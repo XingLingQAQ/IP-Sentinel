@@ -1,0 +1,116 @@
+name: Build and Publish Docker Images
+
+# ==========================================================
+# 触发条件: 推送 v* 标签时自动构建，或手动触发 (支持自定义版本号)
+# ==========================================================
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: '可选: 手动指定版本标签 (如 v4.1.0)'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      # ----------------------------------------------------------
+      # [代码签出] 拉取完整仓库内容
+      # ----------------------------------------------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      # [版本解析] 从 version.txt 提取 Master 与 Agent 版本号
+      # ----------------------------------------------------------
+      - name: Extract versions from version.txt
+        id: versions
+        run: |
+          MASTER_VERSION=$(grep "^MASTER_VERSION=" version.txt | cut -d'=' -f2 | tr -d '[:space:]')
+          AGENT_VERSION=$(grep "^AGENT_VERSION=" version.txt | cut -d'=' -f2 | tr -d '[:space:]')
+          echo "master_version=${MASTER_VERSION}" >> $GITHUB_OUTPUT
+          echo "agent_version=${AGENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Master Version: ${MASTER_VERSION}"
+          echo "Agent Version: ${AGENT_VERSION}"
+
+      # ----------------------------------------------------------
+      # [构建引擎] 配置 Docker Buildx 多平台构建环境
+      # ----------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ----------------------------------------------------------
+      # [鉴权登录] 登录 GitHub Container Registry
+      # ----------------------------------------------------------
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ----------------------------------------------------------
+      # [Master 元数据] 生成镜像标签与标注信息
+      # ----------------------------------------------------------
+      - name: Docker meta for Master
+        id: meta-master
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/ip-sentinel-master
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.versions.outputs.master_version }}
+            type=raw,value=latest
+
+      # ----------------------------------------------------------
+      # [Master 构建] 多平台构建并推送 Master 镜像
+      # ----------------------------------------------------------
+      - name: Build and Push Master Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: master/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-master.outputs.tags }}
+          labels: ${{ steps.meta-master.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ----------------------------------------------------------
+      # [Agent 元数据] 生成镜像标签与标注信息
+      # ----------------------------------------------------------
+      - name: Docker meta for Agent
+        id: meta-agent
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/ip-sentinel-agent
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.versions.outputs.agent_version }}
+            type=raw,value=latest
+
+      # ----------------------------------------------------------
+      # [Agent 构建] 多平台构建并推送 Agent 镜像
+      # ----------------------------------------------------------
+      - name: Build and Push Agent Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: core/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-agent.outputs.tags }}
+          labels: ${{ steps.meta-agent.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
