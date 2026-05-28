@@ -101,12 +101,22 @@ EOF
 fi
 
 # ----------------------------------------------------------
+# [Webhook 秘钥] 生成或使用提供的 WEBHOOK_SECRET
+# ----------------------------------------------------------
+if [ -z "$WEBHOOK_SECRET" ]; then
+    WEBHOOK_SECRET=$(openssl rand -hex 32)
+    echo "[Docker] 已自动生成 WEBHOOK_SECRET (随机 256-bit)"
+fi
+export WEBHOOK_SECRET
+
+# ----------------------------------------------------------
 # [Webhook 注册] 每次启动时向 Telegram 注册 Webhook 地址
 # ----------------------------------------------------------
 echo "[Docker] 正在注册 Telegram Webhook..."
 WEBHOOK_RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
     -d "url=${WEBHOOK_URL}/webhook" \
-    -d "allowed_updates=[\"message\",\"callback_query\"]")
+    -d "allowed_updates=[\"message\",\"callback_query\"]" \
+    -d "secret_token=${WEBHOOK_SECRET}")
 if echo "$WEBHOOK_RESULT" | grep -q '"ok":true'; then
     echo "[Docker] Webhook 注册成功: ${WEBHOOK_URL}/webhook"
 else
@@ -118,7 +128,7 @@ fi
 # ----------------------------------------------------------
 echo "[Docker] 正在启动 IP-Sentinel Master 控制中枢 (Webhook 模式)..."
 
-export TG_TOKEN DB_FILE MASTER_DIR MASTER_VERSION IS_OFFICIAL_GATEWAY ENABLE_MASTER_OTA WEBHOOK_URL CHAT_ID
+export TG_TOKEN DB_FILE MASTER_DIR MASTER_VERSION IS_OFFICIAL_GATEWAY ENABLE_MASTER_OTA WEBHOOK_URL CHAT_ID WEBHOOK_SECRET
 
 python3 "${MASTER_DIR}/webhook_master.py" &
 MASTER_PID=$!

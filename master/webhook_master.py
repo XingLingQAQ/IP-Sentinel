@@ -10,10 +10,12 @@ import hmac
 import json
 import os
 import re
+import secrets
 import sqlite3
 import subprocess
 import threading
 import time
+import traceback
 import urllib.parse
 import urllib.request
 from base64 import b64encode
@@ -33,8 +35,11 @@ ENABLE_MASTER_OTA = os.environ.get("ENABLE_MASTER_OTA", "false")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 CHAT_ID = os.environ.get("CHAT_ID", "")
 
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "") or secrets.token_hex(32)
+
 REPO_RAW_URL = "https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
 SERVER_PORT = 7860
+MAX_BODY_SIZE = 1_048_576  # 1 MB request body limit
 
 # ==========================================================
 # Flag Mapping
@@ -321,8 +326,10 @@ PRIVATE_IP_PATTERNS = [
     re.compile(r"^10\."),
     re.compile(r"^192\.168\."),
     re.compile(r"^172\.(1[6-9]|2[0-9]|3[0-1])\."),
+    re.compile(r"^169\.254\."),
     re.compile(r"^::1$"),
     re.compile(r"^localhost$", re.IGNORECASE),
+    re.compile(r"^f[cd]", re.IGNORECASE),  # fc00::/7 (ULA)
 ]
 
 
@@ -1256,8 +1263,10 @@ def handle_heartbeat(headers, body):
         return 401, {"error": "Missing signature or chat_id"}
 
     # Validate HMAC using chat_id as key
+    # Agent signs "body:timestamp", so reconstruct the same payload
+    sign_payload = body + b":" + timestamp.encode() if timestamp else body
     expected = hmac.new(
-        req_chat_id.encode(), body, hashlib.sha256
+        req_chat_id.encode(), sign_payload, hashlib.sha256
     ).hexdigest()
 
     if not hmac.compare_digest(signature, expected):
@@ -1315,6 +1324,12 @@ class WebhookHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests."""
         content_length = int(self.headers.get("Content-Length", 0))
+
+        # Reject oversized requests to prevent memory exhaustion
+        if content_length > MAX_BODY_SIZE:
+            self._send_json(413, {"error": "Request body too large"})
+            return
+
         body = self.rfile.read(content_length) if content_length > 0 else b""
 
         if self.path == "/webhook":
@@ -1332,6 +1347,12 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
     def _handle_webhook(self, body):
         """Process a Telegram webhook update."""
+        # Verify Telegram secret token
+        secret_token = self.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if not hmac.compare_digest(secret_token, WEBHOOK_SECRET):
+            self._send_json(403, {"error": "Invalid secret token"})
+            return
+
         self._send_json(200, {"ok": True})
 
         try:
@@ -1347,7 +1368,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
         try:
             self._route_update(update)
         except Exception:
-            pass
+            traceback.print_exc()
 
     def _route_update(self, update):
         """Route update to command handlers."""
@@ -1467,6 +1488,7 @@ def main():
     """Initialize DB and start the webhook HTTP server."""
     global TG_TOKEN, DB_FILE, MASTER_DIR, MASTER_VERSION
     global IS_OFFICIAL_GATEWAY, ENABLE_MASTER_OTA, WEBHOOK_URL, CHAT_ID
+    global WEBHOOK_SECRET
 
     # Reload from environment (in case of late binding)
     TG_TOKEN = os.environ.get("TG_TOKEN", TG_TOKEN)
@@ -1477,6 +1499,7 @@ def main():
     ENABLE_MASTER_OTA = os.environ.get("ENABLE_MASTER_OTA", ENABLE_MASTER_OTA)
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL", WEBHOOK_URL)
     CHAT_ID = os.environ.get("CHAT_ID", CHAT_ID)
+    WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "") or WEBHOOK_SECRET
 
     if not TG_TOKEN:
         print("[FATAL] TG_TOKEN environment variable is not set!")
