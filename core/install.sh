@@ -61,7 +61,7 @@ fi
 echo -e "======================================\n"
 sleep 1
 
-REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
+REPO_RAW_URL="https://raw.githubusercontent.com/XingLingQAQ/IP-Sentinel/main"
 INSTALL_DIR="/opt/ip_sentinel"
 CONFIG_FILE="${INSTALL_DIR}/config.conf"
 
@@ -407,6 +407,29 @@ if [ "$UPGRADE_MODE" == "false" ]; then
     fi
 
     # ----------------------------------------------------------
+    # [心跳上报] Master 心跳配置 (可选)
+    # ----------------------------------------------------------
+        echo -e "\n\033[36m[4.3/7] Master 心跳上报配置 (可选)\033[0m"
+        echo -e "💡 配置后，Agent 将每 10 分钟向 Master 发送心跳信号，用于节点在线状态监控。"
+        echo -e "💡 若您使用 Docker 部署 Master，请填写 Master 的公网 HTTPS 地址。"
+        read -p "请输入 Master Webhook URL (回车跳过): " MASTER_WEBHOOK_INPUT
+        MASTER_WEBHOOK_URL=""
+        if [ -n "$MASTER_WEBHOOK_INPUT" ]; then
+            while [[ -n "$MASTER_WEBHOOK_INPUT" ]] && ! [[ "$MASTER_WEBHOOK_INPUT" =~ ^https?:// ]]; do
+                echo -e "\033[33m⚠️ URL 必须以 http:// 或 https:// 开头，请重新输入。\033[0m"
+                read -p "请输入 Master Webhook URL (回车跳过): " MASTER_WEBHOOK_INPUT
+            done
+            if [ -n "$MASTER_WEBHOOK_INPUT" ]; then
+                MASTER_WEBHOOK_URL="$MASTER_WEBHOOK_INPUT"
+                echo -e "\033[32m✅ 已记录 Master 心跳上报地址。\033[0m"
+            else
+                echo -e "\033[33m⏭️ 已跳过心跳配置。\033[0m"
+            fi
+        else
+            echo -e "\033[33m⏭️ 已跳过心跳配置，节点将以独立模式运行。\033[0m"
+        fi
+
+    # ----------------------------------------------------------
     # [网络锚定] 冗余网络栈探测与多出口智能嗅探
     # ----------------------------------------------------------
     echo -e "\n\033[36m[4.5/7] 正在探测本机网络栈与可用出口 (多节点雷达扫描中)...\033[0m"
@@ -542,7 +565,7 @@ NODE_ALIAS="$NODE_ALIAS"
 
 ENABLE_OTA="$ENABLE_OTA"
 
-MASTER_WEBHOOK_URL=""
+MASTER_WEBHOOK_URL="$MASTER_WEBHOOK_URL"
 EOF
 
     chmod 600 "$CONFIG_FILE"
@@ -1016,5 +1039,5 @@ fi
 echo -e "\n========================================================"
 echo -e "⭐ \033[33m开源不易，如果 IP-Sentinel 提升了您的节点稳定性，请赐予我们一枚星标！\033[0m"
 echo -e "💡 \033[32m您的每一颗 Star 都是我们持续对抗风控、维护更新指纹库的核心动力。\033[0m"
-echo -e "👉 \033[36m\033[4m\033]8;;https://github.com/hotyue/IP-Sentinel\033\\点击此处直达 GitHub 仓库点亮 Star 🌟\033[0m\033]8;;\033\\"
+echo -e "👉 \033[36m\033[4m\033]8;;https://github.com/XingLingQAQ/IP-Sentinel\033\\点击此处直达 GitHub 仓库点亮 Star 🌟\033[0m\033]8;;\033\\"
 echo -e "========================================================\n"

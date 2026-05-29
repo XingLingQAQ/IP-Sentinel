@@ -32,6 +32,8 @@ services:
       - ENABLE_MASTER_OTA=${ENABLE_MASTER_OTA:-false}
       # [可选] 是否为官方公共网关模式 (默认关闭)
       - IS_OFFICIAL_GATEWAY=${IS_OFFICIAL_GATEWAY:-false}
+      # [可选] Webhook 安全密钥 (留空则自动生成)
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
     volumes:
       # SQLite 数据库持久化，防止容器重建时丢失节点数据
       - sentinel-data:/opt/ip_sentinel_master/data
