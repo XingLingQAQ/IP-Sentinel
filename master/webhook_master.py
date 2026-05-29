@@ -208,9 +208,10 @@ def tg_api_call(method, data):
             url, data=payload,
             headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode("utf-8"))
-    except Exception:
+    except Exception as e:
+        print(f"[TG API] {method} failed: {e}")
         return None
 
 
@@ -308,8 +309,8 @@ def curl_agent_sync(url):
     """Send blocking curl request to agent, return response text."""
     try:
         result = subprocess.run(
-            ["curl", "-k", "-s", "--connect-timeout", "5", "-m", "15", url],
-            capture_output=True, text=True, timeout=20
+            ["curl", "-k", "-s", "--connect-timeout", "10", "-m", "30", url],
+            capture_output=True, text=True, timeout=35
         )
         return result.stdout.strip()
     except Exception:
@@ -735,12 +736,13 @@ def handle_action(chat_id, action_type, target_node, msg_id=None):
         send_msg(s_chat_id, "\u274c \u6570\u636e\u5e93\u4e2d\u672a\u627e\u5230\u8be5\u8282\u70b9\u7684\u901a\u8baf\u5730\u5740\u3002")
         return
 
-    # Show progress
+    # Show progress with back button in case agent is slow
     progress_msg = f"\u23f3 \u6b63\u5728\u5411 `{target_node}` ({agent_ip}) \u4e0b\u53d1 [{action_type}] \u6307\u4ee4\uff0c\u8bf7\u7a0d\u5019..."
+    progress_btn = [[{"text": "\U0001f3e0 \u4e3b\u83dc\u5355", "callback_data": "/start"}]]
     if msg_id:
-        edit_msg(s_chat_id, msg_id, progress_msg)
+        edit_ui(s_chat_id, msg_id, progress_msg, progress_btn)
     else:
-        send_msg(s_chat_id, progress_msg)
+        send_ui(s_chat_id, progress_msg, progress_btn)
 
     target_url = generate_signed_url(agent_ip, agent_port, f"/trigger_{action_type}", s_chat_id)
     response = curl_agent_sync(target_url)
@@ -761,10 +763,13 @@ def handle_action(chat_id, action_type, target_node, msg_id=None):
         else:
             text_res = f"\u2705 \u8282\u70b9 `{target_node}` \u63a5\u6536\u6307\u4ee4: {action_type}"
 
+    # Append a "back to node panel" button so user can navigate after action
+    back_btn = [[{"text": "\u2b05\ufe0f \u8fd4\u56de\u8282\u70b9\u9762\u677f", "callback_data": f"manage:{target_node}"},
+                 {"text": "\U0001f3e0 \u4e3b\u83dc\u5355", "callback_data": "/start"}]]
     if msg_id:
-        edit_msg(s_chat_id, msg_id, text_res)
+        edit_ui(s_chat_id, msg_id, text_res, back_btn)
     else:
-        send_msg(s_chat_id, text_res)
+        send_ui(s_chat_id, text_res, back_btn)
 
 
 def handle_toggle(chat_id, mod_name, target_node, target_state, msg_id=None):
@@ -1123,10 +1128,11 @@ def handle_ota_execute(chat_id, target_node, msg_id=None):
         return
 
     progress_text = f"\u23f3 \u6b63\u5728\u5411 `{target_node}` \u53d1\u9001 OTA \u89e6\u53d1\u62a5\u6587..."
+    progress_btn = [[{"text": "\U0001f3e0 \u4e3b\u83dc\u5355", "callback_data": "/start"}]]
     if msg_id:
-        edit_msg(s_chat_id, msg_id, progress_text)
+        edit_ui(s_chat_id, msg_id, progress_text, progress_btn)
     else:
-        send_msg(s_chat_id, progress_text)
+        send_ui(s_chat_id, progress_text, progress_btn)
 
     target_url = generate_signed_url(agent_ip, agent_port, "/trigger_ota", s_chat_id)
     response = curl_agent_sync(target_url)
@@ -1138,10 +1144,12 @@ def handle_ota_execute(chat_id, target_node, msg_id=None):
     else:
         text_res = "\u2705 OTA (TLS\u52a0\u5bc6) \u89e6\u53d1\u6210\u529f\uff01\u8282\u70b9\u6b63\u5728\u540e\u53f0\u6267\u884c\u62c9\u53d6\u91cd\u6784..."
 
+    back_btn = [[{"text": "\u2b05\ufe0f \u8fd4\u56de\u8282\u70b9\u9762\u677f", "callback_data": f"manage:{target_node}"},
+                 {"text": "\U0001f3e0 \u4e3b\u83dc\u5355", "callback_data": "/start"}]]
     if msg_id:
-        edit_msg(s_chat_id, msg_id, text_res)
+        edit_ui(s_chat_id, msg_id, text_res, back_btn)
     else:
-        send_msg(s_chat_id, text_res)
+        send_ui(s_chat_id, text_res, back_btn)
 
 
 def handle_master_ota_confirm(chat_id, msg_id=None):
