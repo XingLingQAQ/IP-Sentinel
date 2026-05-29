@@ -1,0 +1,48 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Replace all hotyue/IP-Sentinel references with XingLingQAQ/IP-Sentinel, update AGENT_VERSION to 4.2.1, remove Agent Docker build from CI, delete core/Dockerfile, add heartbeat anomaly detection in webhook_master.py, and default-enable heartbeat in install.sh.",
+  "status": "completed",
+  "steps": [
+    "1. In version.txt, change AGENT_VERSION=4.2.0 to AGENT_VERSION=4.2.1",
+    "2. In core/install.sh line 64, change REPO_RAW_URL from hotyue to XingLingQAQ. Also line 1019 change the GitHub URL from hotyue to XingLingQAQ.",
+    "3. In core/agent_daemon.sh line 421, change the hardcoded repo_url from hotyue to XingLingQAQ.",
+    "4. In core/mod_trust.sh line 11, change REPO_RAW_URL from hotyue to XingLingQAQ.",
+    "5. In core/tg_report.sh line 200, change REPO_RAW_URL from hotyue to XingLingQAQ.",
+    "6. In core/updater.sh line 12, change REPO_RAW_URL from hotyue to XingLingQAQ.",
+    "7. In master/tg_master.sh line 12, change REPO_RAW_URL from hotyue to XingLingQAQ. Lines 276 and 278, change the GitHub button URLs from hotyue to XingLingQAQ.",
+    "8. In master/install_master.sh line 63, change REPO_RAW_URL from hotyue to XingLingQAQ. Line 412, change the GitHub URL from hotyue to XingLingQAQ.",
+    "9. In master/webhook_master.py line 40, change REPO_RAW_URL from hotyue to XingLingQAQ. Lines 536 and 543, change the GitHub button URLs from hotyue to XingLingQAQ.",
+    "10. In README.md: Replace ALL occurrences of hotyue/IP-Sentinel with XingLingQAQ/IP-Sentinel (license badge, curl commands for install_master.sh and install.sh in all 3 deployment modes, legacy branch URL, contributors image, starchart URLs). Keep the @xykt credit line as-is.",
+    "11. In .github/workflows/docker-publish.yml: Remove the 'Docker meta for Agent' step and the 'Build and Push Agent Image' step entirely. Also remove the AGENT_VERSION extraction from the 'Extract versions' step (it is no longer needed). Keep the trigger (v* tag push + workflow_dispatch) and only build/push the Master image.",
+    "12. Delete the file core/Dockerfile entirely (Agent Docker image is no longer built).",
+    "13. In master/webhook_master.py, in the handle_heartbeat() function, after the 'UPDATE nodes SET last_seen' DB call, add anomaly detection logic: parse load_avg from the JSON body (format '1min,5min,15min'), check if 1-minute load exceeds 10.0; parse uptime and check if it is less than 300 seconds (recent reboot). If any anomaly is detected and CHAT_ID is available (from header X-Chat-Id), call send_msg() to send an alert with the node name, alias, anomaly type, and current stats.",
+    "14. In core/install.sh, in the interactive setup section (after asking for TG_TOKEN/CHAT_ID but before writing config.conf), add a prompt asking for MASTER_WEBHOOK_URL (optional, for heartbeat reporting to the Master). If provided, write it to config.conf. The heartbeat timer is already enabled unconditionally via systemd (ip-sentinel-heartbeat.timer is already enabled at line ~770). The heartbeat.sh script already exits silently if MASTER_WEBHOOK_URL is empty, so simply adding the prompt and writing the value to config.conf is sufficient.",
+    "15. Verify docker-compose.yml does NOT reference any Agent image or service - it currently only has Master, which is correct. No changes needed to docker-compose.yml."
+  ],
+  "acceptance_criteria": [
+    "grep -r 'hotyue/IP-Sentinel' on all non-.git files returns zero results",
+    "version.txt contains AGENT_VERSION=4.2.1",
+    "core/Dockerfile does not exist",
+    ".github/workflows/docker-publish.yml has no Agent build steps",
+    "master/webhook_master.py handle_heartbeat() contains anomaly detection for high load and recent reboot",
+    "core/install.sh contains a prompt for MASTER_WEBHOOK_URL during interactive setup",
+    "bash -n passes on all .sh files",
+    "python3 -m py_compile passes on master/webhook_master.py"
+  ],
+  "verification": [
+    "grep -r 'hotyue/IP-Sentinel' /projects/sandbox/IP-Sentinel --include='*.sh' --include='*.py' --include='*.yml' --include='*.md' --include='*.txt'",
+    "bash -n /projects/sandbox/IP-Sentinel/core/install.sh",
+    "bash -n /projects/sandbox/IP-Sentinel/core/agent_daemon.sh",
+    "bash -n /projects/sandbox/IP-Sentinel/core/updater.sh",
+    "bash -n /projects/sandbox/IP-Sentinel/core/tg_report.sh",
+    "bash -n /projects/sandbox/IP-Sentinel/core/mod_trust.sh",
+    "bash -n /projects/sandbox/IP-Sentinel/core/heartbeat.sh",
+    "bash -n /projects/sandbox/IP-Sentinel/master/install_master.sh",
+    "bash -n /projects/sandbox/IP-Sentinel/master/tg_master.sh",
+    "python3 -m py_compile /projects/sandbox/IP-Sentinel/master/webhook_master.py",
+    "test ! -f /projects/sandbox/IP-Sentinel/core/Dockerfile"
+  ],
+  "blocked_reason": null,
+  "findings": "version.txt had AGENT_VERSION=4.1.6 (not 4.2.0 as stated in feature), updated to 4.2.1. heartbeat.sh does not exist on main branch. docker-compose.yml had Agent service references that needed removal (contrary to step 15 stating no changes needed). webhook_master.py was cherry-picked from feat/webhook-master-refactor branch since it does not exist on main. Review fixes applied: (1) added 60-min in-memory alert cooldown, (2) added WEBHOOK_SECRET to docker-compose.yml, (3) fixed step numbering gap 4.5->4.4, (4) added URL validation for MASTER_WEBHOOK_URL input."
+}

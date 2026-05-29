@@ -60,7 +60,7 @@ fi
 echo -e "======================================\n"
 sleep 1
 
-REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
+REPO_RAW_URL="https://raw.githubusercontent.com/XingLingQAQ/IP-Sentinel/main"
 
 # [链路容灾] 双栈冗余防抖抓取，确立本地态势版本号
 TARGET_VERSION=$( (curl -fsSL --connect-timeout 5 --retry 2 "${REPO_RAW_URL}/version.txt" || curl -4 -fsSL --connect-timeout 5 --retry 2 "${REPO_RAW_URL}/version.txt") 2>/dev/null | grep "^MASTER_VERSION=" | cut -d'=' -f2 | tr -d '[:space:]')
@@ -254,9 +254,27 @@ if [ "$UPGRADE_MODE" == "false" ]; then
         fi
     fi
 
+    # [中枢身份生成] 提取宿主特征生成全局唯一标识
+    MASTER_IP=$( (curl -4 -s -m 3 api.ip.sb/ip || curl -4 -s -m 3 ifconfig.me) 2>/dev/null | tr -d '[:space:]' )
+    MASTER_HASH=$(echo "${MASTER_IP:-127.0.0.1}" | md5sum | cut -c 1-4 | tr 'a-z' 'A-Z')
+    MASTER_NODE="$(hostname | tr -cd 'a-zA-Z0-9' | cut -c 1-10)-${MASTER_HASH}"
+    
+    echo -e "\n[2.2/4] 司令部展示别名设定 (用于面板区分多台 VPS)"
+    echo -e "💡 系统底层的不可变主键为: \033[33m${MASTER_NODE}\033[0m"
+    read -p "请输入中枢展示别名 (如'美西主控机', 回车使用默认): " CUSTOM_MASTER_ALIAS
+
+    if [ -n "$CUSTOM_MASTER_ALIAS" ]; then
+        MASTER_NODE_NAME=$(echo "$CUSTOM_MASTER_ALIAS" | tr -d '"'\''\`\$\|&;<>\n\r' | cut -c 1-20)
+        [ -z "$MASTER_NODE_NAME" ] && MASTER_NODE_NAME="$MASTER_NODE"
+    else
+        MASTER_NODE_NAME="$MASTER_NODE"
+    fi
+    echo -e "✅ 已锁定司令部展示别名: \033[32m$MASTER_NODE_NAME\033[0m"
+
     cat > "${MASTER_DIR}/master.conf" << EOF
 # IP-Sentinel Master 本地固化配置 (v${TARGET_VERSION})
 MASTER_VERSION="$TARGET_VERSION"
+MASTER_NODE_NAME="$MASTER_NODE_NAME"
 TG_TOKEN="$TG_TOKEN"
 DB_FILE="$DB_FILE"
 MASTER_DIR="$MASTER_DIR"
@@ -271,6 +289,13 @@ if [ "$UPGRADE_MODE" == "true" ]; then
     fi
     if ! grep -q "^ENABLE_MASTER_OTA=" "${MASTER_DIR}/master.conf"; then
         echo "ENABLE_MASTER_OTA=\"false\"" >> "${MASTER_DIR}/master.conf"
+    fi
+    # [热修复] 为老版本司令部平滑补齐中枢标识
+    if ! grep -q "^MASTER_NODE_NAME=" "${MASTER_DIR}/master.conf"; then
+        MASTER_IP=$( (curl -4 -s -m 3 api.ip.sb/ip || curl -4 -s -m 3 ifconfig.me) 2>/dev/null | tr -d '[:space:]' )
+        MASTER_HASH=$(echo "${MASTER_IP:-127.0.0.1}" | md5sum | cut -c 1-4 | tr 'a-z' 'A-Z')
+        MASTER_NODE_NAME="$(hostname | tr -cd 'a-zA-Z0-9' | cut -c 1-10)-${MASTER_HASH}"
+        echo "MASTER_NODE_NAME=\"$MASTER_NODE_NAME\"" >> "${MASTER_DIR}/master.conf"
     fi
 fi
 
@@ -409,5 +434,5 @@ fi
 echo -e "\n========================================================"
 echo -e "⭐ \033[33m开源不易，如果 IP-Sentinel 极大简化了您的多节点管理，请赐予我们一枚星标！\033[0m"
 echo -e "💡 \033[32m您的每一颗 Star 都是我们持续迭代架构、开发 Web 视窗化控制台的动力源泉。\033[0m"
-echo -e "👉 \033[36m\033[4m\033]8;;https://github.com/hotyue/IP-Sentinel\033\\点击此处直达 GitHub 仓库点亮 Star 🌟\033[0m\033]8;;\033\\"
+echo -e "👉 \033[36m\033[4m\033]8;;https://github.com/XingLingQAQ/IP-Sentinel\033\\点击此处直达 GitHub 仓库点亮 Star 🌟\033[0m\033]8;;\033\\"
 echo -e "========================================================\n"

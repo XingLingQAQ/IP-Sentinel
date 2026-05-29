@@ -1,0 +1,14 @@
+{
+  "task_id": "task-update-agent-v421",
+  "task_description": "Update agent version to 4.2.1, replace all hotyue repo URLs with XingLingQAQ, remove Agent Docker build from CI, delete core/Dockerfile, add heartbeat anomaly detection with TG alerts in Master, and default-enable heartbeat reporting in install.sh.",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All bash -n checks pass, python compile passes, zero hotyue references remain, core/Dockerfile deleted, docker-compose.yml is Master-only with webhook config, version.txt has correct versions. Review issues addressed: alert cooldown, WEBHOOK_SECRET in compose, step numbering, URL validation."
+  }
+}
