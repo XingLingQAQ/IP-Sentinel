@@ -1,0 +1,31 @@
+{
+  "project_type": "Shell/Python distributed agent system (Master-Agent architecture for VPS IP maintenance)",
+  "language": "Bash + Python3",
+  "build_system": "No build system - shell scripts and Python scripts deployed directly. Docker for Master only.",
+  "test_framework": "No formal test framework - validation is via bash syntax check (bash -n)",
+  "build_command": "bash -n core/install.sh && bash -n core/agent_daemon.sh && bash -n core/updater.sh && bash -n core/tg_report.sh && bash -n core/mod_trust.sh && bash -n core/heartbeat.sh && bash -n master/install_master.sh && bash -n master/tg_master.sh && python3 -m py_compile master/webhook_master.py",
+  "test_command": "bash -n core/install.sh && bash -n core/agent_daemon.sh && bash -n core/updater.sh && bash -n core/tg_report.sh && bash -n core/mod_trust.sh && bash -n core/heartbeat.sh && bash -n master/install_master.sh && bash -n master/tg_master.sh && python3 -m py_compile master/webhook_master.py",
+  "verification_instructions": "Run bash -n on all .sh files to verify no syntax errors. Run python3 -m py_compile on .py files. Grep for remaining hotyue references.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No setup needed - scripts are standalone.",
+  "environment_constraints": "OPEN_INTERNET - full access available.",
+  "contribution_requirements": "Replace all hotyue/IP-Sentinel references with XingLingQAQ/IP-Sentinel. Maintain Chinese documentation style.",
+  "key_patterns": "REPO_RAW_URL variable pattern used across scripts. GitHub URLs in README for clone commands. Docker compose only has Master service.",
+  "relevant_files": [
+    "version.txt",
+    "core/install.sh",
+    "core/agent_daemon.sh",
+    "core/updater.sh",
+    "core/tg_report.sh",
+    "core/mod_trust.sh",
+    "core/heartbeat.sh",
+    "core/Dockerfile",
+    "master/tg_master.sh",
+    "master/install_master.sh",
+    "master/webhook_master.py",
+    ".github/workflows/docker-publish.yml",
+    "docker-compose.yml",
+    "README.md"
+  ],
+  "directory_structure": "core/ - Agent scripts, master/ - Master scripts, data/ - Global data rules, .github/workflows/ - CI/CD"
+}

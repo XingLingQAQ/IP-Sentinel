@@ -61,7 +61,7 @@ fi
 echo -e "======================================\n"
 sleep 1
 
-REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
+REPO_RAW_URL="https://raw.githubusercontent.com/XingLingQAQ/IP-Sentinel/main"
 INSTALL_DIR="/opt/ip_sentinel"
 CONFIG_FILE="${INSTALL_DIR}/config.conf"
 
@@ -322,6 +322,7 @@ if [ "$UPGRADE_MODE" == "false" ]; then
     TG_TOKEN=""
     CHAT_ID=""
     AGENT_PORT="9527"
+    MASTER_WEBHOOK_URL=""
     if [[ "$TG_CHOICE" =~ ^[Yy]$ ]]; then
         echo -e "\n请选择中枢接入模式 (推荐私有部署，支持后续 OTA 远程静默升级):"
         echo "  1) 🛡️ 私有独立中枢 (需提供自建 Bot Token，推荐)"
@@ -404,6 +405,18 @@ if [ "$UPGRADE_MODE" == "false" ]; then
             fi
         done
         echo -e "✅ 已锁定 Webhook 通讯端口: \033[32m$AGENT_PORT\033[0m"
+
+        echo -e "\n\033[36m[4.3/7] Master 心跳上报配置 (可选)\033[0m"
+        echo -e "💡 配置后，Agent 将每 10 分钟向 Master 发送心跳信号，用于节点在线状态监控。"
+        echo -e "💡 若您使用 Docker 部署 Master，请填写 Master 的公网 HTTPS 地址。"
+        read -p "请输入 Master Webhook URL (回车跳过): " MASTER_WEBHOOK_INPUT
+        MASTER_WEBHOOK_URL=""
+        if [ -n "$MASTER_WEBHOOK_INPUT" ]; then
+            MASTER_WEBHOOK_URL="$MASTER_WEBHOOK_INPUT"
+            echo -e "\033[32m✅ 已记录 Master 心跳上报地址。\033[0m"
+        else
+            echo -e "\033[33m⏭️ 已跳过心跳配置，节点将以独立模式运行。\033[0m"
+        fi
     fi
 
     # ----------------------------------------------------------
@@ -541,6 +554,8 @@ NODE_NAME="$NODE_NAME"
 NODE_ALIAS="$NODE_ALIAS"
 
 ENABLE_OTA="$ENABLE_OTA"
+
+MASTER_WEBHOOK_URL="$MASTER_WEBHOOK_URL"
 EOF
 
     chmod 600 "$CONFIG_FILE"
@@ -984,5 +999,5 @@ fi
 echo -e "\n========================================================"
 echo -e "⭐ \033[33m开源不易，如果 IP-Sentinel 提升了您的节点稳定性，请赐予我们一枚星标！\033[0m"
 echo -e "💡 \033[32m您的每一颗 Star 都是我们持续对抗风控、维护更新指纹库的核心动力。\033[0m"
-echo -e "👉 \033[36m\033[4m\033]8;;https://github.com/hotyue/IP-Sentinel\033\\点击此处直达 GitHub 仓库点亮 Star 🌟\033[0m\033]8;;\033\\"
+echo -e "👉 \033[36m\033[4m\033]8;;https://github.com/XingLingQAQ/IP-Sentinel\033\\点击此处直达 GitHub 仓库点亮 Star 🌟\033[0m\033]8;;\033\\"
 echo -e "========================================================\n"

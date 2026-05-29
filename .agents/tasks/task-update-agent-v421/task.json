@@ -1,0 +1,7 @@
+{
+  "task_id": "task-update-agent-v421",
+  "task_description": "Update agent version to 4.2.1, replace all hotyue repo URLs with XingLingQAQ, remove Agent Docker build from CI, delete core/Dockerfile, add heartbeat anomaly detection with TG alerts in Master, and default-enable heartbeat reporting in install.sh.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

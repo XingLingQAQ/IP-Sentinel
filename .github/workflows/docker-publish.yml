@@ -33,25 +33,18 @@ jobs:
         uses: actions/checkout@v4
 
       # ----------------------------------------------------------
-      # [版本解析] 从 version.txt 提取 Master 与 Agent 版本号
+      # [版本解析] 从 version.txt 提取 Master 版本号
       # ----------------------------------------------------------
       - name: Extract versions from version.txt
         id: versions
         run: |
           MASTER_VERSION=$(grep "^MASTER_VERSION=" version.txt | cut -d'=' -f2 | tr -d '[:space:]')
-          AGENT_VERSION=$(grep "^AGENT_VERSION=" version.txt | cut -d'=' -f2 | tr -d '[:space:]')
           if [ -z "$MASTER_VERSION" ]; then
             echo "::error::MASTER_VERSION not found in version.txt"
             exit 1
           fi
-          if [ -z "$AGENT_VERSION" ]; then
-            echo "::error::AGENT_VERSION not found in version.txt"
-            exit 1
-          fi
           echo "master_version=${MASTER_VERSION}" >> $GITHUB_OUTPUT
-          echo "agent_version=${AGENT_VERSION}" >> $GITHUB_OUTPUT
           echo "Master Version: ${MASTER_VERSION}"
-          echo "Agent Version: ${AGENT_VERSION}"
 
       # ----------------------------------------------------------
       # [构建引擎] 配置 Docker Buildx 多平台构建环境
@@ -93,32 +86,5 @@ jobs:
           push: true
           tags: ${{ steps.meta-master.outputs.tags }}
           labels: ${{ steps.meta-master.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # ----------------------------------------------------------
-      # [Agent 元数据] 生成镜像标签与标注信息
-      # ----------------------------------------------------------
-      - name: Docker meta for Agent
-        id: meta-agent
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/ip-sentinel-agent
-          tags: |
-            type=semver,pattern={{version}},value=${{ steps.versions.outputs.agent_version }}
-            type=raw,value=latest
-
-      # ----------------------------------------------------------
-      # [Agent 构建] 多平台构建并推送 Agent 镜像
-      # ----------------------------------------------------------
-      - name: Build and Push Agent Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: core/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta-agent.outputs.tags }}
-          labels: ${{ steps.meta-agent.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
