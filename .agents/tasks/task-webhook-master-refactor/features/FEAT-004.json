@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-004",
+  "type": "fix",
+  "description": "Address all 5 issues from the 2025-01-20 review: HMAC mismatch, unauthenticated webhook, no body size limit, silent exception swallowing, and SSRF protection gaps.",
+  "status": "completed",
+  "steps": [
+    "Fix heartbeat HMAC mismatch in webhook_master.py: reconstruct sign payload as body + b':' + timestamp.encode() before computing HMAC",
+    "Add WEBHOOK_SECRET env var support: generate random if not provided, pass as secret_token in setWebhook API call in docker-entrypoint.sh, verify X-Telegram-Bot-Api-Secret-Token header in webhook_master.py",
+    "Add MAX_BODY_SIZE = 1_048_576 (1 MB) check in do_POST before reading body, return 413 if exceeded",
+    "Add traceback.print_exc() in _process_update exception handler instead of bare pass",
+    "Add 169.254.x.x and fc00::/7 to SSRF private IP checks"
+  ],
+  "acceptance_criteria": [
+    "handle_heartbeat validates HMAC against body + ':' + timestamp concatenated",
+    "WEBHOOK_SECRET is checked in /webhook endpoint, rejecting requests without valid secret token",
+    "do_POST returns 413 for Content-Length > 1MB",
+    "_process_update logs exceptions to stderr via traceback.print_exc()",
+    "is_private_ip blocks 169.254.x.x and fc00::/7 ranges"
+  ],
+  "verification": [
+    "python3 -c \"import ast; ast.parse(open('master/webhook_master.py').read())\"",
+    "bash -n master/docker-entrypoint.sh",
+    "docker build -f master/Dockerfile -t ip-sentinel-master:test ."
+  ],
+  "blocked_reason": null,
+  "findings": "All 5 review issues fixed and verified. HMAC now validates body:timestamp matching agent signing contract. WEBHOOK_SECRET auto-generated and passed to setWebhook API. 1MB body limit returns 413. Exceptions logged via traceback.print_exc(). SSRF blocklist expanded with 169.254.x.x and fc00::/7. Docker image builds successfully. All tests pass."
+}

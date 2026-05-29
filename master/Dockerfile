@@ -6,7 +6,7 @@
 FROM debian:bookworm-slim
 
 LABEL maintainer="IP-Sentinel"
-LABEL description="IP-Sentinel Master 控制中枢 - Telegram Bot 长轮询服务"
+LABEL description="IP-Sentinel Master 控制中枢 - Telegram Bot Webhook 事件驱动服务"
 
 # [依赖装甲] 安装中枢运行所需的全部系统组件
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     openssl \
     ca-certificates \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # [目录构建] 创建中枢工作目录与数据持久化挂载点
@@ -25,11 +26,16 @@ RUN mkdir -p /opt/ip_sentinel_master/data
 
 # [核心部署] 复制中枢引擎与入口脚本
 COPY master/tg_master.sh /opt/ip_sentinel_master/tg_master.sh
+COPY master/webhook_master.py /opt/ip_sentinel_master/webhook_master.py
 COPY master/docker-entrypoint.sh /opt/ip_sentinel_master/docker-entrypoint.sh
 
 # [权限加固] 确保脚本可执行
 RUN chmod +x /opt/ip_sentinel_master/tg_master.sh \
+    && chmod +x /opt/ip_sentinel_master/webhook_master.py \
     && chmod +x /opt/ip_sentinel_master/docker-entrypoint.sh
+
+# [端口声明] Webhook HTTP 服务监听端口
+EXPOSE 7860
 
 # [数据卷声明] SQLite 数据库持久化存储
 VOLUME ["/opt/ip_sentinel_master/data"]

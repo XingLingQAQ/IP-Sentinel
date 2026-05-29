@@ -646,6 +646,7 @@ curl -fsSL --connect-timeout 10 --retry 3 "${REPO_RAW_URL}/core/uninstall.sh" -o
 curl -fsSL --connect-timeout 10 --retry 3 "${REPO_RAW_URL}/core/mod_google.sh" -o "${TMP_CORE}/mod_google.sh"
 curl -fsSL --connect-timeout 10 --retry 3 "${REPO_RAW_URL}/core/mod_trust.sh" -o "${TMP_CORE}/mod_trust.sh"
 curl -fsSL --connect-timeout 10 --retry 3 "${REPO_RAW_URL}/core/mod_quality.sh" -o "${TMP_CORE}/mod_quality.sh"
+curl -fsSL --connect-timeout 10 --retry 3 "${REPO_RAW_URL}/core/heartbeat.sh" -o "${TMP_CORE}/heartbeat.sh"
 
 # 🛡️ 终极自检墙：一旦任意文件缺失或长度为零，直接熔断放弃覆写，确保宿主不宕机
 if [ ! -s "${TMP_CORE}/runner.sh" ] || [ ! -s "${TMP_CORE}/agent_daemon.sh" ]; then
@@ -742,8 +743,33 @@ Unit=ip-sentinel-updater.service
 WantedBy=timers.target
 EOF
 
+    cat > /etc/systemd/system/ip-sentinel-heartbeat.service << EOF
+[Unit]
+Description=IP-Sentinel Heartbeat Service
+After=network.target
+[Service]
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+SyslogIdentifier=ip-sentinel
+Type=oneshot
+ExecStart=/bin/bash ${INSTALL_DIR}/core/heartbeat.sh
+User=root
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+EOF
+
+    cat > /etc/systemd/system/ip-sentinel-heartbeat.timer << EOF
+[Unit]
+Description=Timer for IP-Sentinel Heartbeat Service
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+Unit=ip-sentinel-heartbeat.service
+[Install]
+WantedBy=timers.target
+EOF
+
     systemctl daemon-reload
-    systemctl enable --now ip-sentinel-runner.timer ip-sentinel-updater.timer
+    systemctl enable --now ip-sentinel-runner.timer ip-sentinel-updater.timer ip-sentinel-heartbeat.timer
 
     if [[ -n "$TG_TOKEN" ]] && [[ -n "$CHAT_ID" ]]; then
         cat > /etc/systemd/system/ip-sentinel-report.service << EOF
@@ -830,6 +856,9 @@ while true; do
     if [ "\$HOUR" == "16" ] && [ "\$MIN" == "00" ]; then
         /bin/bash /opt/ip_sentinel/core/tg_report.sh >/dev/null 2>&1
     fi
+    if [ "\$MIN" == "00" ] || [ "\$MIN" == "10" ] || [ "\$MIN" == "20" ] || [ "\$MIN" == "30" ] || [ "\$MIN" == "40" ] || [ "\$MIN" == "50" ]; then
+        /bin/bash /opt/ip_sentinel/core/heartbeat.sh >/dev/null 2>&1
+    fi
     if ! pgrep -f 'webhook.py' >/dev/null; then
         /bin/bash /opt/ip_sentinel/core/agent_daemon.sh >/dev/null 2>&1 &
     fi
@@ -853,6 +882,7 @@ EOF
             crontab -l 2>/dev/null | grep -v "ip_sentinel" > "${SECURE_TMP}/cron_backup" || true
             echo "*/20 * * * * ${INSTALL_DIR}/core/runner.sh >/dev/null 2>&1" >> "${SECURE_TMP}/cron_backup"
             echo "${DEPLOY_UTC_MIN} ${DEPLOY_UTC_HOUR} * * * ${INSTALL_DIR}/core/updater.sh >/dev/null 2>&1" >> "${SECURE_TMP}/cron_backup"
+            echo "*/10 * * * * ${INSTALL_DIR}/core/heartbeat.sh >/dev/null 2>&1" >> "${SECURE_TMP}/cron_backup"
             
             if [[ -n "$TG_TOKEN" ]] && [[ -n "$CHAT_ID" ]]; then
                 echo "0 16 * * * ${INSTALL_DIR}/core/tg_report.sh >/dev/null 2>&1" >> "${SECURE_TMP}/cron_backup"

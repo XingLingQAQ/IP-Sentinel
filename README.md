@@ -81,6 +81,333 @@ curl -fsSL https://raw.githubusercontent.com/XingLingQAQ/IP-Sentinel/main/core/i
 ```
 - 激活节点：同上，将收到的暗号转发给官方机器人即可。
 
+### 🐳 模式 C：Docker 容器化部署 Master 司令部 (推荐生产环境)
+适合追求环境隔离、标准化运维与快速迁移的运维指挥官。将 Master 中枢容器化部署，彻底消除环境差异问题，实现真正的 **基础设施即代码 (IaC)**。
+
+> 🛡️ **多架构装甲支持**：官方 Master 镜像提供 `linux/amd64` 与 `linux/arm64` 双平台预构建，兼容 x86 服务器与 ARM 开发板。
+>
+> 💡 **架构说明 (v5.0.0 Webhook 事件驱动架构)**：
+> - Docker 容器化部署**仅适用于 Master 司令部**。Master 内部运行 `webhook_master.py` (Python3 HTTP 服务)，监听 **端口 7860**，通过 Telegram Webhook 接收消息推送 (取代旧版长轮询机制)。
+> - **Agent 不需要 Docker 部署**。Agent 边缘节点必须直接安装在目标 VPS 裸金属上 (通过模式 A/B 的 `install.sh`)，原因：Agent 需要直接感知宿主机真实网络环境 (公网 IP 探测、端口监听、路由表绑定等)，Docker 网络隔离会导致 IP 检测失真。
+> - **支持 HuggingFace Spaces 部署**：Master 可作为 Docker Space 部署在 [HuggingFace Spaces](https://huggingface.co/spaces) 上 (免费 GPU/CPU Spaces 均可)，无需自备服务器，平台自动提供 HTTPS 公网 URL。
+
+---
+
+#### 📋 前置条件 (Prerequisites)
+
+| 组件 | 最低版本 | 安装参考 |
+|------|---------|---------|
+| Docker Engine | 20.10+ | [官方安装文档](https://docs.docker.com/engine/install/) |
+| Docker Compose | v2.0+ (插件模式) | [Compose 安装指南](https://docs.docker.com/compose/install/) |
+
+验证安装：
+```bash
+docker --version        # Docker version 20.10+
+docker compose version  # Docker Compose version v2.x.x
+```
+
+---
+
+#### 🚀 方式一：Docker Compose 部署 (推荐)
+
+> 使用 Docker Compose 编排 Master 司令部，一条命令完成部署。Master 容器内部运行 `webhook_master.py` (端口 7860)，启动时自动注册 Telegram Webhook。Agent 仍通过 `install.sh` 在各边缘 VPS 上独立部署。
+
+**第一步：克隆战术仓库**
+```bash
+git clone https://github.com/XingLingQAQ/IP-Sentinel.git
+cd IP-Sentinel
+```
+
+**第二步：创建环境变量配置文件**
+
+在项目根目录创建 `.env` 文件，填入中枢作战参数：
+```bash
+cat > .env << 'EOF'
+# ==================================================
+# IP-Sentinel Master v5.0.0 Docker 部署环境变量配置
+# (Webhook 事件驱动架构)
+# ==================================================
+
+# ---------- [必填] Telegram 通讯链路 ----------
+# 通过 @BotFather 创建私有机器人后获取的 Bot Token
+# 获取方法: 在 TG 中搜索 @BotFather -> /newbot -> 复制 HTTP API Token
+TG_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# 管理员个人 Chat ID (Master 启动后发送指令的目标用户)
+# 获取方法: 在 TG 中搜索 @userinfobot -> 发送任意消息 -> 复制 Id 字段
+CHAT_ID=987654321
+
+# ---------- [必填] Webhook 公网接入地址 ----------
+# Master 对外可达的 HTTPS URL (Telegram 服务器将向此地址推送消息)
+# 必须为 HTTPS，且该地址能从公网访问到容器的 7860 端口
+# 示例 (自有域名): https://sentinel.your-domain.com
+# 示例 (HuggingFace Spaces): https://username-ip-sentinel.hf.space
+WEBHOOK_URL=https://your-domain.com
+
+# ---------- [可选] Webhook 安全秘钥 ----------
+# 用于验证来自 Telegram 的 Webhook 请求 (防止伪造)
+# 留空则容器启动时自动生成随机 256-bit 密钥
+# WEBHOOK_SECRET=your-custom-secret-here
+
+# ---------- [可选] 中枢 OTA 自更新 ----------
+# 设为 true 后，可通过 TG 面板一键升级 Master 自身 (金蝉脱壳)
+# 首次部署建议保持 false，待稳定后再开启
+ENABLE_MASTER_OTA=false
+
+# ---------- [可选] 官方公共网关模式 ----------
+# 仅官方运营者需设为 true，私有部署用户请保持 false
+IS_OFFICIAL_GATEWAY=false
+EOF
+```
+
+> 💡 **安全提示**：`.env` 文件包含敏感凭据 (Token、Webhook 地址)，请确保不要将其提交到 Git 仓库。项目 `.gitignore` 已默认忽略该文件。
+
+**第三步：启动 Master 中枢**
+```bash
+docker compose up -d master
+```
+
+> 💡 容器启动时会自动向 Telegram 注册 Webhook 地址 (调用 `setWebhook` API)，无需手动配置。
+
+**第四步：确认中枢运行状态**
+```bash
+# 查看容器运行状态
+docker compose ps
+
+# 实时查看中枢日志 (Ctrl+C 退出)
+docker compose logs -f master
+
+# 验证 Webhook 服务健康状态 (应返回 {"status":"ok","version":"5.0.0"})
+curl http://localhost:7860/health
+```
+正常启动后，日志将显示：
+```
+[Docker] 正在启动 IP-Sentinel Master 控制中枢 (Webhook 模式)...
+[Docker] Webhook 注册成功: https://your-domain.com/webhook
+[Webhook Master] v5.0.0 listening on 0.0.0.0:7860
+[Webhook Master] Endpoints: POST /webhook, POST /heartbeat, GET /health
+```
+
+**第五步：部署 Agent 并激活编队**
+
+在需要养护 IP 的各台 VPS 上，按照上方 **模式 A** 或 **模式 B** 的方式安装 Agent。Agent 启动后会向你的 TG 发送 `#REGISTER#` 注册暗号，将其转发给你的机器人即可完成编队入库。
+
+> 💡 **关于 WEBHOOK_URL 获取**：如果你使用自有服务器部署 Master，需要为该服务器配置反向代理 (Nginx/Caddy) 并绑定域名 + SSL 证书，将 HTTPS 流量转发到容器的 7860 端口。如果使用 HuggingFace Spaces，平台会自动分配 `https://username-space-name.hf.space` 格式的公网 HTTPS 地址。
+
+---
+
+#### 🧠 方式二：Docker Run 直接部署 (无需 Compose)
+
+> 适合不想克隆仓库、直接一行命令拉起中枢的极简主义者。
+
+```bash
+docker run -d \
+  --name ip-sentinel-master \
+  --restart unless-stopped \
+  -p 7860:7860 \
+  -e TG_TOKEN="你的Bot_Token" \
+  -e CHAT_ID="你的Chat_ID" \
+  -e WEBHOOK_URL="https://your-domain.com" \
+  -e ENABLE_MASTER_OTA="false" \
+  -e IS_OFFICIAL_GATEWAY="false" \
+  -v sentinel-data:/opt/ip_sentinel_master/data \
+  ghcr.io/xinglingqaq/ip-sentinel-master:latest
+```
+
+**参数解读：**
+| 参数 | 说明 |
+|------|------|
+| `-p 7860:7860` | 映射 Webhook HTTP 服务端口 (Telegram 推送入口) |
+| `--restart unless-stopped` | 异常退出自动拉起，手动 stop 除外 |
+| `-e TG_TOKEN=xxx` | 传入 Telegram Bot Token (必填) |
+| `-e CHAT_ID=xxx` | 传入管理员 Chat ID (必填) |
+| `-e WEBHOOK_URL=xxx` | Master 的公网 HTTPS 地址，Telegram 向此推送消息 (必填) |
+| `-e ENABLE_MASTER_OTA=false` | 中枢 OTA 自更新开关 |
+| `-e IS_OFFICIAL_GATEWAY=false` | 官方网关模式开关 (私有用户保持 false) |
+| `-v sentinel-data:/opt/ip_sentinel_master/data` | 将 SQLite 数据库挂载至命名卷，容器重建数据不丢失 |
+
+---
+
+#### 📦 方式三：使用预构建镜像 (GHCR)
+
+官方 Master 镜像托管于 GitHub Container Registry，支持版本锁定与滚动更新：
+
+```bash
+# 拉取最新版 Master 镜像
+docker pull ghcr.io/xinglingqaq/ip-sentinel-master:latest
+
+# 拉取指定版本镜像 (推荐生产环境锁定版本号)
+docker pull ghcr.io/xinglingqaq/ip-sentinel-master:5.0.0
+```
+
+> 镜像在每次发布新版本 Tag (`v*`) 时由 GitHub Actions 自动构建并推送，同时生成 `linux/amd64` 与 `linux/arm64` 双平台产物。
+
+---
+
+#### 📊 环境变量完整参考表 (Environment Variables Reference)
+
+以下为 Master 司令部 Docker 部署所支持的全部环境变量：
+
+| 变量名 | 必填/可选 | 默认值 | 说明 |
+|--------|----------|--------|------|
+| `TG_TOKEN` | **必填** | - | Telegram Bot Token。通过 @BotFather 创建机器人后获取，格式为 `数字:字母串`。这是 Master 与 Telegram 通讯的唯一凭证 |
+| `CHAT_ID` | **必填** | - | 管理员个人 Telegram Chat ID。通过 @userinfobot 获取。Master 将向此 ID 发送战报与节点注册通知 |
+| `WEBHOOK_URL` | **必填** | - | Master 的公网 HTTPS 地址 (如 `https://sentinel.example.com` 或 `https://user-ip-sentinel.hf.space`)。Telegram 服务器将向 `{WEBHOOK_URL}/webhook` 推送消息更新。必须从公网可达且为 HTTPS 协议 |
+| `WEBHOOK_SECRET` | 可选 | *(自动生成)* | Webhook 请求验证密钥。Telegram 发送 Webhook 时在 Header 中携带此值用于身份验证。留空时容器每次启动自动生成随机 256-bit 密钥 |
+| `ENABLE_MASTER_OTA` | 可选 | `false` | 是否启用中枢 OTA 自更新 (金蝉脱壳)。设为 `true` 后可通过 TG 面板一键升级 Master 版本 |
+| `IS_OFFICIAL_GATEWAY` | 可选 | `false` | 是否以官方公共网关模式运行。仅 [@OmniBeacon_bot](https://t.me/OmniBeacon_bot) 官方运营者使用，私有部署请勿开启 |
+| `MASTER_VERSION` | 可选 | `5.0.0` | Master 版本号标识，一般无需手动指定，由镜像内置 |
+
+> 💡 **获取 TG_TOKEN 的完整步骤：**
+> 1. 在 Telegram 中搜索 [@BotFather](https://t.me/BotFather)
+> 2. 发送 `/newbot`，按提示设定机器人名称与用户名
+> 3. 创建成功后复制返回的 `HTTP API Token` (即 `TG_TOKEN`)
+> 4. 向你新建的机器人发送 `/start` 激活对话
+
+> 💡 **获取 CHAT_ID 的完整步骤：**
+> 1. 在 Telegram 中搜索 [@userinfobot](https://t.me/userinfobot)
+> 2. 发送任意消息，机器人会回复你的用户信息
+> 3. 复制 `Id` 字段的数字 (即 `CHAT_ID`)
+
+---
+
+#### 💾 数据持久化与卷管理 (Volumes & Persistence)
+
+Master 容器的核心数据存储在 SQLite 数据库中，通过 Docker 命名卷实现持久化：
+
+| 命名卷 | 容器内路径 | 用途 |
+|--------|-----------|------|
+| `sentinel-data` | `/opt/ip_sentinel_master/data` | Master SQLite 数据库 (节点注册表 `nodes` + IP 趋势日志 `ip_trend_log`) |
+
+**数据库包含的关键表：**
+- `nodes` - 全舰队节点注册信息 (IP、端口、地区、别名、模块开关状态、最后心跳时间)
+- `ip_trend_log` - IP 质量趋势历史数据 (Scam 分数、Google/Netflix/GPT 解锁状态)
+
+**备份数据：**
+```bash
+# 方法 A：使用 docker cp 导出数据库文件到宿主机
+docker cp ip-sentinel-master:/opt/ip_sentinel_master/data/sentinel.db ./backup_sentinel.db
+
+# 方法 B：使用 bind mount 替代命名卷 (直接映射宿主机目录，方便定时备份)
+# 修改 docker-compose.yml 中的 volumes 配置:
+#   volumes:
+#     - ./data/master:/opt/ip_sentinel_master/data
+```
+
+**恢复数据：**
+```bash
+# 将备份文件恢复到容器
+docker cp ./backup_sentinel.db ip-sentinel-master:/opt/ip_sentinel_master/data/sentinel.db
+
+# 重启容器使数据库生效
+docker restart ip-sentinel-master
+```
+
+> 💡 使用命名卷时，即使执行 `docker compose down` 销毁容器，数据仍安全保存在卷中。仅当显式执行 `docker compose down -v` 时才会清除卷数据。
+
+---
+
+#### 🔧 常用运维命令 (Operations Commands)
+
+```bash
+# ---------- 日志查看 ----------
+docker compose logs -f master          # 实时跟踪中枢日志 (Ctrl+C 退出)
+docker compose logs --tail=100 master  # 查看最近 100 行日志
+docker logs ip-sentinel-master         # 不使用 Compose 时查看日志
+
+# ---------- 服务控制 ----------
+docker compose restart master          # 重启中枢服务
+docker compose stop master             # 停止中枢 (保留容器)
+docker compose down                    # 停止并移除容器 (保留数据卷)
+docker compose down -v                 # 停止并移除容器与数据卷 (!! 慎用 - 会丢失数据库)
+
+# ---------- 滚动更新 ----------
+docker compose pull master             # 拉取最新 Master 镜像
+docker compose up -d master            # 使用新镜像重建容器
+
+# ---------- 调试排障 ----------
+docker exec -it ip-sentinel-master bash                    # 进入中枢容器 Shell
+docker exec -it ip-sentinel-master cat /opt/ip_sentinel_master/master.conf  # 查看生成的配置
+docker inspect ip-sentinel-master                          # 查看容器详细配置与网络信息
+```
+
+---
+
+#### 🆙 Docker 升级指南 (Docker Upgrade)
+
+```bash
+# 一键拉取最新镜像并无缝重建 Master 容器
+docker compose pull master && docker compose up -d master
+```
+
+升级过程中数据卷不受影响，SQLite 数据库安全保留。容器会在数秒内完成替换，中枢启动时自动重新注册 Telegram Webhook 并恢复 HTTP 事件驱动服务。
+
+如需回退至特定版本，修改 `docker-compose.yml` 中的 `image` 字段：
+```yaml
+services:
+  master:
+    image: ghcr.io/xinglingqaq/ip-sentinel-master:5.0.0
+```
+
+然后执行 `docker compose up -d master` 完成版本锁定。
+
+> 💡 **Agent 升级**：Agent 仍通过传统方式升级 (OTA 远程静默升级或 SSH 终端重新运行 `install.sh`)，详见下方「架构级无损热升级指引」章节。
+
+---
+
+#### 🚨 故障排查 (Troubleshooting)
+
+| 现象 | 排查方向 |
+|------|---------|
+| 容器启动后立即退出 | 执行 `docker logs ip-sentinel-master` 查看错误。最常见原因：`TG_TOKEN` 或 `WEBHOOK_URL` 未设置 |
+| 日志显示 "Webhook 注册可能失败" | 检查 `WEBHOOK_URL` 是否为合法 HTTPS 地址、该地址是否从公网可达 (Telegram 服务器需能访问)、SSL 证书是否有效 |
+| 容器反复重启 (restart loop) | 检查 `TG_TOKEN` 是否有效 (未被 @BotFather revoke)、`WEBHOOK_URL` 是否已配置 |
+| 发送命令无响应 | 确认 `WEBHOOK_URL` 配置正确且端口 7860 已对外暴露。执行 `curl https://your-domain.com/health` 验证连通性 |
+| Permission denied 权限拒绝 | 确保使用官方镜像 (脚本已预设 `chmod +x`)。若使用 bind mount，检查宿主机目录权限 |
+| 数据库锁定 (database is locked) | 中枢已内置 WAL 模式处理并发。若仍出现，检查是否有多个容器挂载了同一数据卷 |
+| Agent 注册消息未收到 | 确认 Master 容器正常运行中，检查 Agent 侧 Token 和 Chat ID 是否与 Master 一致 |
+| 节点长时间显示离线 | Master 正常但 Agent 心跳中断，登录 Agent 所在 VPS 检查 `agent_daemon.sh` 进程状态 |
+
+**快速诊断流程：**
+```bash
+# 1. 检查容器状态与退出码
+docker compose ps -a
+
+# 2. 查看最近启动日志定位错误
+docker compose logs --tail=50 master
+
+# 3. 进入容器验证配置是否正确生成
+docker exec -it ip-sentinel-master cat /opt/ip_sentinel_master/master.conf
+
+# 4. 验证 Webhook 服务健康状态
+curl http://localhost:7860/health
+
+# 5. 验证 Telegram API 连通性
+docker exec -it ip-sentinel-master curl -s "https://api.telegram.org/bot你的Token/getMe"
+
+# 6. 检查 Webhook 注册状态
+docker exec -it ip-sentinel-master curl -s "https://api.telegram.org/bot你的Token/getWebhookInfo"
+```
+
+---
+
+#### 💓 Agent 心跳配置 (Heartbeat - 可选)
+
+v4.2.0+ 版本的 Agent 支持向 Master 发送定期心跳 (每 10 分钟一次)。心跳的主要作用：
+- 在 HuggingFace Spaces 等平台上防止容器因无流量而休眠
+- 让 Master 实时更新节点 `last_seen` 时间戳
+
+**配置方法**：在 Agent 所在 VPS 的配置文件 `/opt/ip_sentinel/config.conf` 中添加：
+```bash
+MASTER_WEBHOOK_URL="https://your-domain.com"
+```
+
+将地址替换为你部署 Master 时设置的 `WEBHOOK_URL` 值。
+
+> 💡 **向下兼容**：此配置为可选项。旧版本 Agent (v4.1.x 及更早) 无此字段也能正常工作，所有 TG 管理功能不受影响。新安装的 Agent (通过 `install.sh` v4.2.0+) 会在安装时询问是否配置此项。
+
+---
+
 ## 🆙 架构级无损热升级指引 (Upgrade Guide)
 
 ### 📡 方式一：OTA 远程静默升级 (私有中枢专属)
