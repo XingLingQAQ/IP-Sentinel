@@ -1,13 +1,13 @@
+jack white
 dr ranj
 pollen count
 rik mayall
 star city
 daily telegraph
-premium bonds
+david haig
 bbc news ni
 weather southampton
 cmat
-keely hodgkinson
 sam smith
 weather bolton
 express and star
@@ -23,6 +23,7 @@ eid today
 america's got talent
 suriname
 township
+premium bonds
 energy price cap
 dundee weather
 british gas
@@ -97,4 +98,3 @@ london stock exchange
 fan
 boris johnson
 mortgage rates
-very uk
