@@ -1,16 +1,17 @@
 # ==========================================================
 # IP-Sentinel Docker Compose 部署配置
-# Master 控制中枢 (Agent 不需要 Docker 部署，请使用 install.sh)
+# Master 控制中枢 - Webhook 事件驱动架构
 # ==========================================================
 # 使用方法:
 #   1. 复制此文件并根据实际情况修改环境变量
-#   2. 执行 docker compose up -d 启动全部服务
+#   2. 执行 docker compose up -d 启动服务
 #   3. 查看日志: docker compose logs -f
 # ==========================================================
+# 注意: 仅 Master 需要 Docker 部署，Agent 直接安装在目标机器上
 
 services:
   # ----------------------------------------------------------
-  # [控制中枢] Master - Telegram Bot 长轮询服务
+  # [控制中枢] Master - Telegram Bot Webhook 事件驱动服务
   # 负责全局指令下发、节点管理、OTA 调度
   # ----------------------------------------------------------
   master:
@@ -25,6 +26,8 @@ services:
       - TG_TOKEN=${TG_TOKEN}
       # [必填] 管理员 Chat ID (通过 @userinfobot 获取)
       - CHAT_ID=${CHAT_ID}
+      # [必填] Webhook 公网 URL (如 https://your-domain.com)
+      - WEBHOOK_URL=${WEBHOOK_URL}
       # [可选] 是否启用中枢 OTA 自更新 (默认关闭)
       - ENABLE_MASTER_OTA=${ENABLE_MASTER_OTA:-false}
       # [可选] 是否为官方公共网关模式 (默认关闭)
@@ -32,6 +35,9 @@ services:
     volumes:
       # SQLite 数据库持久化，防止容器重建时丢失节点数据
       - sentinel-data:/opt/ip_sentinel_master/data
+    ports:
+      # Webhook HTTP 服务端口映射
+      - "7860:7860"
 
 # ----------------------------------------------------------
 # [数据卷] 命名卷声明，由 Docker 引擎管理生命周期
