@@ -136,21 +136,44 @@ while [ $_RETRY -lt 15 ]; do
     _RETRY=$((_RETRY + 1))
 done
 
+# ----------------------------------------------------------
+# [Webhook 注册] 带指数退避的多次重试 (最多 5 次，总计约 2.5 分钟)
+# HF Spaces 等平台出站网络可能不稳定，需要多次尝试
+# ----------------------------------------------------------
 echo "[Docker] 正在注册 Telegram Webhook..."
-WEBHOOK_RESULT=$(curl -s --connect-timeout 10 -m 15 \
-    -X POST "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
-    -d "url=${WEBHOOK_URL}/webhook" \
-    -d "allowed_updates=[\"message\",\"callback_query\"]" \
-    -d "secret_token=${WEBHOOK_SECRET}" 2>&1)
-_CURL_CODE=$?
+_WH_SUCCESS="false"
+_WH_ATTEMPT=0
+_WH_MAX_ATTEMPTS=5
+_WH_DELAY=5
 
-if [ $_CURL_CODE -ne 0 ]; then
-    echo "[Docker] 警告: Webhook 注册网络错误 (curl exit ${_CURL_CODE})，服务已启动但尚未注册。"
-    echo "[Docker] 容器完全就绪后可手动重试: curl -X POST https://api.telegram.org/bot\${TG_TOKEN}/setWebhook -d url=\${WEBHOOK_URL}/webhook"
-elif echo "$WEBHOOK_RESULT" | grep -q '"ok":true'; then
-    echo "[Docker] Webhook 注册成功: ${WEBHOOK_URL}/webhook"
-else
-    echo "[Docker] 警告: Webhook 注册失败: $WEBHOOK_RESULT"
+while [ $_WH_ATTEMPT -lt $_WH_MAX_ATTEMPTS ]; do
+    _WH_ATTEMPT=$((_WH_ATTEMPT + 1))
+    echo "[Docker] Webhook 注册尝试 ${_WH_ATTEMPT}/${_WH_MAX_ATTEMPTS}..."
+
+    WEBHOOK_RESULT=$(curl -s --connect-timeout 30 -m 60 --retry 3 --retry-delay 5 \
+        -X POST "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
+        -d "url=${WEBHOOK_URL}/webhook" \
+        -d "allowed_updates=[\"message\",\"callback_query\"]" \
+        -d "secret_token=${WEBHOOK_SECRET}" 2>&1)
+    _CURL_CODE=$?
+
+    if [ $_CURL_CODE -eq 0 ] && echo "$WEBHOOK_RESULT" | grep -q '"ok":true'; then
+        echo "[Docker] Webhook 注册成功: ${WEBHOOK_URL}/webhook"
+        _WH_SUCCESS="true"
+        break
+    fi
+
+    if [ $_WH_ATTEMPT -lt $_WH_MAX_ATTEMPTS ]; then
+        echo "[Docker] 注册失败 (curl exit ${_CURL_CODE})，${_WH_DELAY} 秒后重试..."
+        sleep $_WH_DELAY
+        _WH_DELAY=$((_WH_DELAY * 2))
+    fi
+done
+
+if [ "$_WH_SUCCESS" != "true" ]; then
+    echo "[Docker] 警告: Webhook 注册在 ${_WH_MAX_ATTEMPTS} 次尝试后仍失败。"
+    echo "[Docker] 服务已正常启动，Webhook 可稍后手动注册:"
+    echo "[Docker]   curl -X POST \"https://api.telegram.org/bot\${TG_TOKEN}/setWebhook\" -d \"url=\${WEBHOOK_URL}/webhook\""
 fi
 
 wait "$MASTER_PID"
