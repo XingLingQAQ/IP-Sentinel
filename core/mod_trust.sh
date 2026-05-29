@@ -32,7 +32,12 @@ fi
 
 # 解析安全网址数组
 if [ -f "$REGION_JSON_FILE" ]; then
-    mapfile -t TRUST_URLS < <(jq -r '.trust_module.white_urls[]' "$REGION_JSON_FILE" 2>/dev/null)
+    if command -v jq >/dev/null 2>&1; then
+        mapfile -t TRUST_URLS < <(jq -r '.trust_module.white_urls[]' "$REGION_JSON_FILE" 2>/dev/null)
+    else
+        log_msg "WARN " "系统未安装 jq，白名单解析降级为兜底模式。"
+        TRUST_URLS=()
+    fi
 fi
 
 # [极限容灾] 提供国际通用无害白名单防全盘崩溃
@@ -44,11 +49,11 @@ fi
 log_msg() {
     local TYPE=$1
     local MSG=$2
-    # 强制无视本地时区，统一采用 UTC 时间生成日志时间戳
     local TIME=$(date -u "+%Y-%m-%d %H:%M:%S UTC")
     local local_ver="${AGENT_VERSION:-未知}"
-    
-    echo "[$TIME] [v%-5s] [%-5s] [Trust  ] [$REGION] $MSG" | sed "s/%-5s/$local_ver/;s/%-5s/$TYPE/" | tee -a "$LOG_FILE"
+
+    printf "[%s] [v%-5s] [%-5s] [Trust  ] [%s] %s\n" \
+        "$TIME" "$local_ver" "$TYPE" "$REGION" "$MSG" | tee -a "$LOG_FILE"
 }
 
 # ==========================================================
@@ -85,20 +90,43 @@ log_msg "START" "========== 启动区域 IP 信用净化会话 =========="
 log_msg "INFO " "已载入 [${REGION}] 区域白名单，配置库条目: ${#TRUST_URLS[@]} 个"
 log_msg "INFO " "已锁定本地伪装指纹: $(echo $CURRENT_UA | cut -d' ' -f1-2)..."
 
+# -----------------------------------------------------------
+# [v4.1.6] Cookie 持久化身份库 (Trust 专属物理隔离)
+# 消除无记忆爬虫特征，积累顶级 CDN 的访客信誉分
+# -----------------------------------------------------------
+COOKIE_DIR="${INSTALL_DIR}/data/cookies"
+mkdir -p "$COOKIE_DIR"
+
+NODE_HASH=$(echo -n "${PUBLIC_IP:-127.0.0.1}" | cksum | awk '{print $1}')
+COOKIE_FILE="${COOKIE_DIR}/trust_${NODE_HASH}.txt"
+
+# [互斥锁] 防止并发净化导致 Cookie 文件读写冲突
+LOCK_FILE="${COOKIE_FILE}.lock"
+exec 200>"$LOCK_FILE"
+flock -n 200 || {
+    log_msg "WARN " "检测到已有 Trust 会话运行，跳过本轮。"
+    exit 0
+}
+
+# 定期清理废弃 Cookie，防爆栈
+find "$COOKIE_DIR" -type f -name "trust_*.txt" -mtime +14 -delete 2>/dev/null || true
+
 # ----------------------------------------------------------
 # 网络锚定与协议自适应构建 
 # 强制 curl 绑定网卡并自动匹配底层网络协议栈
 # ----------------------------------------------------------
-CURL_BIND_OPT=""
+# [v4.1.6 修复] 改用 Bash 数组传参，彻底消除 Shell Word Splitting 注入隐患
+CURL_BIND_ARGS=()
 DYNAMIC_IP_PREF="-${IP_PREF:-4}"
 
 if [[ -n "$BIND_IP" && "$BIND_IP" =~ ^[0-9a-fA-F:\.]+$ ]]; then
     RAW_BIND_IP=$(echo "$BIND_IP" | tr -d '[]')
-    if ! ip addr show 2>/dev/null | grep -qw "$RAW_BIND_IP"; then
+    # [v4.1.6 修复] 使用 -Fq 替代 -qw，防止 IPv6 冒号被误认为单词边界导致误杀
+    if ! ip addr show 2>/dev/null | grep -Fq "$RAW_BIND_IP"; then
         log_msg "WARN " "检测到配置的出口 IP ($RAW_BIND_IP) 已丢失，自动降级为系统默认路由出网！"
-        CURL_BIND_OPT=""
+        CURL_BIND_ARGS=()
     else
-        CURL_BIND_OPT="--interface $BIND_IP"
+        CURL_BIND_ARGS=(--interface "$BIND_IP")
         if [[ "$BIND_IP" == *":"* ]]; then
             DYNAMIC_IP_PREF="-6"
             log_msg "INFO " "底层路由锁定: 绑定 IPv6 出口及协议 ($BIND_IP)"
@@ -113,30 +141,55 @@ STEP_COUNT=$((RANDOM % 4 + 3))
 SUCCESS_INJECT=0
 
 for ((i=1; i<=STEP_COUNT; i++)); do
-    TARGET_URL=${TRUST_URLS[$RANDOM % ${#TRUST_URLS[@]}]}
+    TARGET_URL=${TRUST_URLS[$((RANDOM % ${#TRUST_URLS[@]}))]}
     
-    # 注入高权重流量，严格绑定出网协议，构造隐蔽的安全伪装协议头
-    HTTP_CODE=$(curl $CURL_BIND_OPT $DYNAMIC_IP_PREF -A "$CURRENT_UA" \
+    # [v4.1.6] 统一数组化执行、挂载持久化 Cookie (-b -c) 并精准捕获底层死因
+    HTTP_CODE=$(curl "${CURL_BIND_ARGS[@]}" "$DYNAMIC_IP_PREF" \
+        -b "$COOKIE_FILE" -c "$COOKIE_FILE" -A "$CURRENT_UA" \
         -H "Accept: text/html,application/xhtml+xml;q=0.9,image/avif,image/webp,*/*;q=0.8" \
         -H "Accept-Language: en-US,en;q=0.9" \
         -H "Sec-Fetch-Dest: document" \
         -H "Sec-Fetch-Mode: navigate" \
         -H "Upgrade-Insecure-Requests: 1" \
         --compressed \
-        -s -o /dev/null -w "%{http_code}" -m 15 "$TARGET_URL")
+        -s -L -o /dev/null -w "%{http_code}" -m 15 "$TARGET_URL")
+    CURL_EXIT=$?
 
-    # 扩大 HTTP 状态码容错区间：包含各大骨干 CDN 常见的 20x 及 30x 状态转移
-    if [[ "$HTTP_CODE" =~ ^(20[0-9]|30[1-8])$ ]]; then
-        log_msg "EXEC " "动作[$i/$STEP_COUNT]完成 | 状态: $HTTP_CODE | 注入: $TARGET_URL"
-        ((SUCCESS_INJECT++))
+    # [v4.1.6 修复] 精准错误码映射，防空值塌陷
+    if [ $CURL_EXIT -ne 0 ]; then
+        case $CURL_EXIT in
+            6)  HTTP_CODE="ERR_DNS" ;;
+            7)  HTTP_CODE="ERR_CONN" ;;
+            28) HTTP_CODE="ERR_TIMEOUT" ;;
+            35) HTTP_CODE="ERR_TLS" ;;
+            56) HTTP_CODE="ERR_RESET" ;;
+            *)  HTTP_CODE="ERR_${CURL_EXIT}" ;;
+        esac
+        log_msg "WARN " "动作[$i/$STEP_COUNT]异常 | 底层错误: $HTTP_CODE | 阻拦: ${TARGET_URL:0:40}..."
     else
-        log_msg "EXEC " "动作[$i/$STEP_COUNT]异常 | 状态: $HTTP_CODE | 阻拦: $TARGET_URL"
+        # 扩大 HTTP 状态码容错区间：包含各大骨干 CDN 常见的 20x 及 30x 状态转移
+        if [[ "$HTTP_CODE" =~ ^[23] ]]; then
+            log_msg "EXEC " "动作[$i/$STEP_COUNT]完成 | 状态: $HTTP_CODE | 注入: ${TARGET_URL:0:40}..."
+            ((SUCCESS_INJECT++))
+        else
+            log_msg "WARN " "动作[$i/$STEP_COUNT]异常 | 状态: $HTTP_CODE | 阻拦: ${TARGET_URL:0:40}..."
+        fi
     fi
 
+    # [v4.1.6] 泊松长尾生物钟拉伸，模拟人类真实阅读扫视习惯
     if [ $i -lt $STEP_COUNT ]; then
-        SLEEP_TIME=$((RANDOM % 76 + 45))
-        log_msg "WAIT " "正在浏览本地高权重页面，模拟停留 $SLEEP_TIME 秒..."
-        sleep $SLEEP_TIME
+        SLEEP_DICE=$((RANDOM % 100))
+        if [ $SLEEP_DICE -lt 45 ]; then
+            SLEEP_TIME=$((8 + RANDOM % 13))    # 8 - 20s (45%)
+        elif [ $SLEEP_DICE -lt 80 ]; then
+            SLEEP_TIME=$((20 + RANDOM % 41))   # 20 - 60s (35%)
+        elif [ $SLEEP_DICE -lt 95 ]; then
+            SLEEP_TIME=$((60 + RANDOM % 121))  # 60 - 180s (15%)
+        else
+            SLEEP_TIME=$((180 + RANDOM % 300)) # 180 - 480s (5%)
+        fi
+        log_msg "WAIT " "正在浏览本地高权重页面，模拟停留 ${SLEEP_TIME}s..."
+        sleep "$SLEEP_TIME"
     fi
 done
 
