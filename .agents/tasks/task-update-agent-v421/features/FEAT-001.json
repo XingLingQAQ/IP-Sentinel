@@ -44,5 +44,5 @@
     "test ! -f /projects/sandbox/IP-Sentinel/core/Dockerfile"
   ],
   "blocked_reason": null,
-  "findings": "version.txt had AGENT_VERSION=4.1.6 (not 4.2.0 as stated in feature), updated to 4.2.1. heartbeat.sh does not exist on main branch. docker-compose.yml had Agent service references that needed removal (contrary to step 15 stating no changes needed). webhook_master.py was cherry-picked from feat/webhook-master-refactor branch since it does not exist on main."
+  "findings": "version.txt had AGENT_VERSION=4.1.6 (not 4.2.0 as stated in feature), updated to 4.2.1. heartbeat.sh does not exist on main branch. docker-compose.yml had Agent service references that needed removal (contrary to step 15 stating no changes needed). webhook_master.py was cherry-picked from feat/webhook-master-refactor branch since it does not exist on main. Review fixes applied: (1) added 60-min in-memory alert cooldown, (2) added WEBHOOK_SECRET to docker-compose.yml, (3) fixed step numbering gap 4.5->4.4, (4) added URL validation for MASTER_WEBHOOK_URL input."
 }
