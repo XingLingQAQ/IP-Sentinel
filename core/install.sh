@@ -412,8 +412,16 @@ if [ "$UPGRADE_MODE" == "false" ]; then
         read -p "请输入 Master Webhook URL (回车跳过): " MASTER_WEBHOOK_INPUT
         MASTER_WEBHOOK_URL=""
         if [ -n "$MASTER_WEBHOOK_INPUT" ]; then
-            MASTER_WEBHOOK_URL="$MASTER_WEBHOOK_INPUT"
-            echo -e "\033[32m✅ 已记录 Master 心跳上报地址。\033[0m"
+            while [[ -n "$MASTER_WEBHOOK_INPUT" ]] && ! [[ "$MASTER_WEBHOOK_INPUT" =~ ^https?:// ]]; do
+                echo -e "\033[33m⚠️ URL 必须以 http:// 或 https:// 开头，请重新输入。\033[0m"
+                read -p "请输入 Master Webhook URL (回车跳过): " MASTER_WEBHOOK_INPUT
+            done
+            if [ -n "$MASTER_WEBHOOK_INPUT" ]; then
+                MASTER_WEBHOOK_URL="$MASTER_WEBHOOK_INPUT"
+                echo -e "\033[32m✅ 已记录 Master 心跳上报地址。\033[0m"
+            else
+                echo -e "\033[33m⏭️ 已跳过心跳配置，节点将以独立模式运行。\033[0m"
+            fi
         else
             echo -e "\033[33m⏭️ 已跳过心跳配置，节点将以独立模式运行。\033[0m"
         fi
@@ -422,7 +430,7 @@ if [ "$UPGRADE_MODE" == "false" ]; then
     # ----------------------------------------------------------
     # [网络锚定] 冗余网络栈探测与多出口智能嗅探
     # ----------------------------------------------------------
-    echo -e "\n\033[36m[4.5/7] 正在探测本机网络栈与可用出口 (多节点雷达扫描中)...\033[0m"
+    echo -e "\n\033[36m[4.4/7] 正在探测本机网络栈与可用出口 (多节点雷达扫描中)...\033[0m"
 
     DETECT_V4=$( (curl -4 -s -m 3 api.ip.sb/ip || curl -4 -s -m 3 ifconfig.me || curl -4 -s -m 3 ipv4.icanhazip.com) 2>/dev/null | grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | head -n 1 | tr -d '[:space:]')
     DETECT_V6=$( (curl -6 -s -m 3 api.ip.sb/ip || curl -6 -s -m 3 ifconfig.me || curl -6 -s -m 3 ipv6.icanhazip.com) 2>/dev/null | grep -E "^[0-9a-fA-F:]+.*:" | head -n 1 | tr -d '[:space:]')

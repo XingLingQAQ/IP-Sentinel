@@ -41,6 +41,10 @@ REPO_RAW_URL = "https://raw.githubusercontent.com/XingLingQAQ/IP-Sentinel/main"
 SERVER_PORT = 7860
 MAX_BODY_SIZE = 1_048_576  # 1 MB request body limit
 
+# Anomaly alert cooldown: suppress duplicate alerts for the same node for 60 minutes
+_alert_cooldowns = {}  # (chat_id, node_name) -> last_alert_timestamp
+ALERT_COOLDOWN_SECONDS = 3600
+
 # ==========================================================
 # Flag Mapping
 # ==========================================================
@@ -1312,15 +1316,20 @@ def handle_heartbeat(headers, body):
             pass
 
     if anomalies and req_chat_id:
-        node_alias = data.get("node_alias", node_name)
-        alert_lines = "\n".join(f"  - {a}" for a in anomalies)
-        alert_msg = (
-            f"\U000026a0\U0000fe0f *节点异常告警*\n"
-            f"节点: `{node_alias}` (`{node_name}`)\n"
-            f"异常:\n{alert_lines}\n"
-            f"负载: `{load_avg}` | 运行时间: `{uptime}s`"
-        )
-        send_msg(req_chat_id, alert_msg)
+        cooldown_key = (req_chat_id, s_node_name)
+        now = time.time()
+        last_alert = _alert_cooldowns.get(cooldown_key, 0)
+        if now - last_alert >= ALERT_COOLDOWN_SECONDS:
+            _alert_cooldowns[cooldown_key] = now
+            node_alias = data.get("node_alias", node_name)
+            alert_lines = "\n".join(f"  - {a}" for a in anomalies)
+            alert_msg = (
+                f"\U000026a0\U0000fe0f *节点异常告警*\n"
+                f"节点: `{node_alias}` (`{node_name}`)\n"
+                f"异常:\n{alert_lines}\n"
+                f"负载: `{load_avg}` | 运行时间: `{uptime}s`"
+            )
+            send_msg(req_chat_id, alert_msg)
 
     return 200, {"status": "ok", "node": s_node_name}
 
