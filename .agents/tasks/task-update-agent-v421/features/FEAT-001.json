@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "chore",
   "description": "Replace all hotyue/IP-Sentinel references with XingLingQAQ/IP-Sentinel, update AGENT_VERSION to 4.2.1, remove Agent Docker build from CI, delete core/Dockerfile, add heartbeat anomaly detection in webhook_master.py, and default-enable heartbeat in install.sh.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. In version.txt, change AGENT_VERSION=4.2.0 to AGENT_VERSION=4.2.1",
     "2. In core/install.sh line 64, change REPO_RAW_URL from hotyue to XingLingQAQ. Also line 1019 change the GitHub URL from hotyue to XingLingQAQ.",
@@ -44,5 +44,5 @@
     "test ! -f /projects/sandbox/IP-Sentinel/core/Dockerfile"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "version.txt had AGENT_VERSION=4.1.6 (not 4.2.0 as stated in feature), updated to 4.2.1. heartbeat.sh does not exist on main branch. docker-compose.yml had Agent service references that needed removal (contrary to step 15 stating no changes needed). webhook_master.py was cherry-picked from feat/webhook-master-refactor branch since it does not exist on main."
 }
