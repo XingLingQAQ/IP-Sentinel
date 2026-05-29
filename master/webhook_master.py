@@ -37,9 +37,13 @@ CHAT_ID = os.environ.get("CHAT_ID", "")
 
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "") or secrets.token_hex(32)
 
-REPO_RAW_URL = "https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
+REPO_RAW_URL = "https://raw.githubusercontent.com/XingLingQAQ/IP-Sentinel/main"
 SERVER_PORT = 7860
 MAX_BODY_SIZE = 1_048_576  # 1 MB request body limit
+
+# Anomaly detection cooldown
+_alert_cooldowns = {}
+ALERT_COOLDOWN_SECONDS = 3600
 
 # ==========================================================
 # Flag Mapping
@@ -533,14 +537,14 @@ def handle_start_menu(chat_id, msg_id=None):
             [{"text": "\U0001f680 \u5524\u9192\u5168\u5c40\u5de1\u903b", "callback_data": "all_run"},
              {"text": "\U0001f4ca \u83b7\u53d6\u5168\u5c40\u7b80\u62a5", "callback_data": "all_reports"}],
             [{"text": "\U0001f504 \u5168\u7f51\u8282\u70b9 OTA \u70ed\u91cd\u8f7d", "callback_data": "all_ota_confirm"}],
-            [{"text": "\U0001f31f \u524d\u5f80 GitHub \u70b9\u4eae\u661f\u6807", "url": "https://github.com/hotyue/IP-Sentinel"}],
+            [{"text": "\U0001f31f \u524d\u5f80 GitHub \u70b9\u4eae\u661f\u6807", "url": "https://github.com/XingLingQAQ/IP-Sentinel"}],
         ])
     else:
         btns.extend([
             [{"text": "\U0001f30d \u8fdb\u5165\u5168\u7403\u96f7\u8fbe (\u7ba1\u7406\u8282\u70b9)", "callback_data": "list_nodes"}],
             [{"text": "\U0001f680 \u5524\u9192\u5168\u5c40\u5de1\u903b", "callback_data": "all_run"},
              {"text": "\U0001f4ca \u83b7\u53d6\u5168\u5c40\u7b80\u62a5", "callback_data": "all_reports"}],
-            [{"text": "\U0001f31f \u524d\u5f80 GitHub \u70b9\u4eae\u661f\u6807", "url": "https://github.com/hotyue/IP-Sentinel"}],
+            [{"text": "\U0001f31f \u524d\u5f80 GitHub \u70b9\u4eae\u661f\u6807", "url": "https://github.com/XingLingQAQ/IP-Sentinel"}],
         ])
 
     text_msg = (
@@ -1289,6 +1293,43 @@ def handle_heartbeat(headers, body):
         "UPDATE nodes SET last_seen=CURRENT_TIMESTAMP WHERE chat_id=? AND node_name=?;",
         (s_chat_id, s_node_name)
     )
+
+    # Anomaly detection: high load and recent reboot alerts
+    anomalies = []
+    load_avg = data.get("load_avg", "")
+    uptime = data.get("uptime", None)
+
+    if load_avg:
+        try:
+            load_1min = float(load_avg.split(",")[0])
+            if load_1min > 10.0:
+                anomalies.append(f"CPU 1min \u8d1f\u8f7d\u8fc7\u9ad8: {load_1min}")
+        except (ValueError, IndexError):
+            pass
+
+    if uptime is not None:
+        try:
+            uptime_sec = int(uptime)
+            if uptime_sec < 300:
+                anomalies.append(f"\u8282\u70b9\u8fd1\u671f\u91cd\u542f (\u8fd0\u884c\u4ec5 {uptime_sec} \u79d2)")
+        except (ValueError, TypeError):
+            pass
+
+    if anomalies and req_chat_id:
+        cooldown_key = (req_chat_id, s_node_name)
+        now = time.time()
+        last_alert = _alert_cooldowns.get(cooldown_key, 0)
+        if now - last_alert >= ALERT_COOLDOWN_SECONDS:
+            _alert_cooldowns[cooldown_key] = now
+            node_alias = data.get("node_alias", node_name)
+            alert_lines = "\n".join(f"  - {a}" for a in anomalies)
+            alert_msg = (
+                f"\u26a0\ufe0f *\u8282\u70b9\u5f02\u5e38\u544a\u8b66*\n"
+                f"\u8282\u70b9: `{node_alias}` (`{node_name}`)\n"
+                f"\u5f02\u5e38:\n{alert_lines}\n"
+                f"\u8d1f\u8f7d: `{load_avg}` | \u8fd0\u884c\u65f6\u95f4: `{uptime}s`"
+            )
+            send_msg(req_chat_id, alert_msg)
 
     return 200, {"status": "ok", "node": s_node_name}
 
