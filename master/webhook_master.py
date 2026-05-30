@@ -29,7 +29,7 @@ from socketserver import ThreadingMixIn
 TG_TOKEN = os.environ.get("TG_TOKEN", "")
 DB_FILE = os.environ.get("DB_FILE", "/opt/ip_sentinel_master/data/sentinel.db")
 MASTER_DIR = os.environ.get("MASTER_DIR", "/opt/ip_sentinel_master")
-MASTER_VERSION = os.environ.get("MASTER_VERSION", "5.0.0")
+MASTER_VERSION = os.environ.get("MASTER_VERSION", "5.0.1")
 IS_OFFICIAL_GATEWAY = os.environ.get("IS_OFFICIAL_GATEWAY", "false")
 ENABLE_MASTER_OTA = os.environ.get("ENABLE_MASTER_OTA", "false")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
