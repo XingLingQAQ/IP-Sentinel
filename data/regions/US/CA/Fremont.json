@@ -1,0 +1,19 @@
+{
+  "region_name": "US - California (Fremont)",
+  "google_module": {
+    "base_lat": 37.5485,
+    "base_lon": -121.9886,
+    "lang_params": "hl=en-US&gl=US",
+    "valid_url_suffix": "com"
+  },
+  "trust_module": {
+    "white_urls": [],
+    "static_urls": [
+      "https://www.fremont.gov/",
+      "https://www.ca.gov/",
+      "https://www.sfgate.com/",
+      "https://www.bart.gov/",
+      "https://www.mercurynews.com/"
+    ]
+  }
+}

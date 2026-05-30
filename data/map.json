@@ -545,16 +545,10 @@
                 {
                   "id": "San_Jose",
                   "name": "San Jose (圣何塞)"
-                }
-              ]
-            },
-            {
-              "id": "CO",
-              "name": "Colorado (科罗拉多州)",
-              "cities": [
+                },
                 {
-                  "id": "Boulder",
-                  "name": "Boulder (博尔德)"
+                  "id": "Fremont",
+                  "name": "Fremont (弗里蒙特)"
                 }
               ]
             },
