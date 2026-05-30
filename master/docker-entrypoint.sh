@@ -124,7 +124,7 @@ echo "[Docker] 正在启动 IP-Sentinel Master 控制中枢 (Webhook 模式)..."
 
 export TG_TOKEN DB_FILE MASTER_DIR MASTER_VERSION IS_OFFICIAL_GATEWAY ENABLE_MASTER_OTA WEBHOOK_URL CHAT_ID WEBHOOK_SECRET DEBUG
 
-python3 "${MASTER_DIR}/webhook_master.py" &
+python3 -u "${MASTER_DIR}/webhook_master.py" &
 MASTER_PID=$!
 
 # ----------------------------------------------------------
