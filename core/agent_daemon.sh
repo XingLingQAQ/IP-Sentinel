@@ -55,6 +55,16 @@ if [ -n "$AGENT_IP" ]; then
     fi
 fi
 
+# [v4.1.8 核心修复] 彻底解决 IPv6 致命耳聋漏洞 (Socket Binding Mismatch)
+# 在拉起 Python 引擎前，由 Bash 强行锁定底层网络栈监听维度，抛弃脆弱的内部解析
+if [[ "$AGENT_IP" == *":"* ]]; then
+    export BIND_ADDR="::"
+    echo "🌐 [Agent] 协议栈识别: 侦测到 IPv6 基因，底层路由强锁定至 [::]"
+else
+    export BIND_ADDR="0.0.0.0"
+    echo "🌐 [Agent] 协议栈识别: 侦测到 IPv4 基因，底层路由强锁定至 0.0.0.0"
+fi
+
 # ==========================================================
 # [加密通信] 强制构建自签名 TLS 装甲，屏蔽中间人嗅探
 # ==========================================================
@@ -472,20 +482,12 @@ import socket
 class ThreadedServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
-# [恢复经典架构] 直接解析固化配置文件，最稳定的协议栈探底方案
-bind_addr = "0.0.0.0"
-ThreadedServer.address_family = socket.AF_INET
-
-config_path = '/opt/ip_sentinel/config.conf'
-if os.path.exists(config_path):
-    with open(config_path, 'r', errors='ignore') as f:
-        for line in f:
-            if line.startswith('PUBLIC_IP='):
-                pub_ip = line.split('=', 1)[1].strip('"\'')
-                if ':' in pub_ip:
-                    bind_addr = "::"
-                    ThreadedServer.address_family = socket.AF_INET6
-                break
+# [v4.1.8 终极修复] 废除脆弱的 Python 内置解析，直接读取 Bash 注入的底层环境变量
+bind_addr = os.environ.get('BIND_ADDR', '0.0.0.0')
+if bind_addr == "::":
+    ThreadedServer.address_family = socket.AF_INET6
+else:
+    ThreadedServer.address_family = socket.AF_INET
 
 httpd = ThreadedServer((bind_addr, PORT), AgentHandler)
 
