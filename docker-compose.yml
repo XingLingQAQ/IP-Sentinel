@@ -34,6 +34,8 @@ services:
       - IS_OFFICIAL_GATEWAY=${IS_OFFICIAL_GATEWAY:-false}
       # [可选] Webhook 签名密钥 (固定值防止容器重启后失效，留空则自动生成)
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      # [可选] 调试模式 (true/false，开启后输出详细请求日志、curl 详情、路由追踪)
+      - DEBUG=${DEBUG:-false}
     volumes:
       # SQLite 数据库持久化，防止容器重建时丢失节点数据
       - sentinel-data:/opt/ip_sentinel_master/data
