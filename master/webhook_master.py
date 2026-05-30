@@ -1569,7 +1569,7 @@ def main():
     """Initialize DB and start the webhook HTTP server."""
     global TG_TOKEN, DB_FILE, MASTER_DIR, MASTER_VERSION
     global IS_OFFICIAL_GATEWAY, ENABLE_MASTER_OTA, WEBHOOK_URL, CHAT_ID
-    global WEBHOOK_SECRET
+    global WEBHOOK_SECRET, DEBUG
 
     # Reload from environment (in case of late binding)
     TG_TOKEN = os.environ.get("TG_TOKEN", TG_TOKEN)
@@ -1581,6 +1581,7 @@ def main():
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL", WEBHOOK_URL)
     CHAT_ID = os.environ.get("CHAT_ID", CHAT_ID)
     WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "") or WEBHOOK_SECRET
+    DEBUG = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
 
     if not TG_TOKEN:
         print("[FATAL] TG_TOKEN environment variable is not set!")
@@ -1591,6 +1592,7 @@ def main():
 
     print(f"[Webhook Master] v{MASTER_VERSION} listening on 0.0.0.0:{SERVER_PORT}")
     print(f"[Webhook Master] Endpoints: POST /webhook, POST /heartbeat, GET /health")
+    print(f"[Webhook Master] DEBUG={DEBUG}")
     if DEBUG:
         print(f"[Webhook Master] DEBUG MODE ENABLED - verbose logging active")
         print(f"[Webhook Master] Config: WEBHOOK_URL={WEBHOOK_URL}")
