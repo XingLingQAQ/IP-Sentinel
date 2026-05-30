@@ -13,6 +13,11 @@ MASTER_DIR="/opt/ip_sentinel_master"
 DB_FILE="${MASTER_DIR}/data/sentinel.db"
 CONF_FILE="${MASTER_DIR}/master.conf"
 
+# [诊断] 立即打印 DEBUG 状态，排查环境变量传递
+echo "[Docker] ENV DEBUG=${DEBUG:-<NOT SET>}"
+echo "[Docker] ENV TG_TOKEN=${TG_TOKEN:+SET(hidden)}"
+echo "[Docker] ENV WEBHOOK_URL=${WEBHOOK_URL:-<NOT SET>}"
+
 # ----------------------------------------------------------
 # [信号处理] 优雅终止，确保子进程正常退出
 # ----------------------------------------------------------
