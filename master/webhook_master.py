@@ -41,9 +41,18 @@ REPO_RAW_URL = "https://raw.githubusercontent.com/XingLingQAQ/IP-Sentinel/main"
 SERVER_PORT = 7860
 MAX_BODY_SIZE = 1_048_576  # 1 MB request body limit
 
+# Debug mode: set DEBUG=true env var to enable verbose logging
+DEBUG = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
+
 # Anomaly alert cooldown: suppress duplicate alerts for the same node for 60 minutes
 _alert_cooldowns = {}  # (chat_id, node_name) -> last_alert_timestamp
 ALERT_COOLDOWN_SECONDS = 3600
+
+
+def debug_log(msg):
+    """Print debug message only when DEBUG mode is enabled."""
+    if DEBUG:
+        print(f"[DEBUG] [{time.strftime('%H:%M:%S')}] {msg}")
 
 # ==========================================================
 # Flag Mapping
@@ -202,6 +211,7 @@ def generate_signed_url(target_ip, target_port, action_path, chat_id=None):
 def tg_api_call(method, data):
     """Make a Telegram Bot API call using urllib."""
     url = f"https://api.telegram.org/bot{TG_TOKEN}/{method}"
+    debug_log(f"TG API -> {method} | chat_id={data.get('chat_id', 'N/A')}")
     try:
         payload = json.dumps(data).encode("utf-8")
         req = urllib.request.Request(
@@ -209,9 +219,12 @@ def tg_api_call(method, data):
             headers={"Content-Type": "application/json"}
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            result = json.loads(resp.read().decode("utf-8"))
+            debug_log(f"TG API <- {method} OK")
+            return result
     except Exception as e:
         print(f"[TG API] {method} failed: {e}")
+        debug_log(f"TG API <- {method} EXCEPTION: {type(e).__name__}: {e}")
         return None
 
 
@@ -307,13 +320,24 @@ def curl_agent_async(url):
 
 def curl_agent_sync(url):
     """Send blocking curl request to agent, return response text."""
+    debug_log(f"Agent curl -> {url}")
     try:
         result = subprocess.run(
-            ["curl", "-k", "-s", "--connect-timeout", "10", "-m", "30", url],
+            ["curl", "-k", "-s", "-v" if DEBUG else "-s", "--connect-timeout", "10", "-m", "30", url],
             capture_output=True, text=True, timeout=35
         )
+        debug_log(f"Agent curl <- exit={result.returncode} stdout={result.stdout[:200]}")
+        if DEBUG and result.stderr:
+            debug_log(f"Agent curl stderr: {result.stderr[:500]}")
+        if result.returncode != 0:
+            debug_log(f"Agent curl FAILED: curl exit code {result.returncode}")
+            return "FAILED"
         return result.stdout.strip()
-    except Exception:
+    except subprocess.TimeoutExpired:
+        debug_log(f"Agent curl TIMEOUT (>35s)")
+        return "FAILED"
+    except Exception as e:
+        debug_log(f"Agent curl EXCEPTION: {type(e).__name__}: {e}")
         return "FAILED"
 
 
@@ -1351,8 +1375,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the webhook server."""
 
     def log_message(self, format, *args):
-        """Suppress default access logging."""
-        pass
+        """Suppress default access logging unless in DEBUG mode."""
+        if DEBUG:
+            print(f"[HTTP] {self.client_address[0]} {format % args}")
 
     def _send_json(self, status_code, data):
         """Send a JSON response."""
@@ -1399,6 +1424,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
         # Verify Telegram secret token
         secret_token = self.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
         if not hmac.compare_digest(secret_token, WEBHOOK_SECRET):
+            debug_log(f"Webhook rejected: invalid secret token")
             self._send_json(403, {"error": "Invalid secret token"})
             return
 
@@ -1406,8 +1432,11 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
         try:
             update = json.loads(body.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            debug_log(f"Webhook body parse failed: {e}")
             return
+
+        debug_log(f"Webhook received update_id={update.get('update_id', '?')}")
 
         # Process in a separate thread to not block the response
         threading.Thread(target=self._process_update, args=(update,), daemon=True).start()
@@ -1430,12 +1459,15 @@ class WebhookHandler(BaseHTTPRequestHandler):
             text = callback_query.get("data", "")
             cb_id = callback_query.get("id", "")
             msg_id = callback_query.get("message", {}).get("message_id")
+            debug_log(f"Route: callback_query text='{text}' chat_id={chat_id}")
         elif message:
             chat_id = str(message.get("chat", {}).get("id", ""))
             text = message.get("text", "")
             cb_id = None
             msg_id = None
+            debug_log(f"Route: message text='{text}' chat_id={chat_id}")
         else:
+            debug_log(f"Route: unknown update type, skipping")
             return
 
         if not chat_id or not text:
@@ -1557,9 +1589,16 @@ def main():
     print(f"[Webhook Master] Initializing database: {DB_FILE}")
     init_db()
 
-    server = ThreadedHTTPServer(("0.0.0.0", SERVER_PORT), WebhookHandler)
     print(f"[Webhook Master] v{MASTER_VERSION} listening on 0.0.0.0:{SERVER_PORT}")
     print(f"[Webhook Master] Endpoints: POST /webhook, POST /heartbeat, GET /health")
+    if DEBUG:
+        print(f"[Webhook Master] DEBUG MODE ENABLED - verbose logging active")
+        print(f"[Webhook Master] Config: WEBHOOK_URL={WEBHOOK_URL}")
+        print(f"[Webhook Master] Config: CHAT_ID={CHAT_ID}")
+        print(f"[Webhook Master] Config: IS_OFFICIAL_GATEWAY={IS_OFFICIAL_GATEWAY}")
+        print(f"[Webhook Master] Config: ENABLE_MASTER_OTA={ENABLE_MASTER_OTA}")
+
+    server = ThreadedHTTPServer(("0.0.0.0", SERVER_PORT), WebhookHandler)
 
     try:
         server.serve_forever()
