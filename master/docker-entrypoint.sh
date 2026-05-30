@@ -83,7 +83,7 @@ fi
 if [ ! -f "$CONF_FILE" ]; then
     echo "[Docker] 未检测到配置文件，正在从环境变量生成..."
 
-    MASTER_VERSION="${MASTER_VERSION:-5.0.0}"
+    MASTER_VERSION="${MASTER_VERSION:-5.0.1}"
     IS_OFFICIAL_GATEWAY="${IS_OFFICIAL_GATEWAY:-false}"
     ENABLE_MASTER_OTA="${ENABLE_MASTER_OTA:-false}"
 
@@ -117,7 +117,7 @@ export WEBHOOK_SECRET
 # ----------------------------------------------------------
 echo "[Docker] 正在启动 IP-Sentinel Master 控制中枢 (Webhook 模式)..."
 
-export TG_TOKEN DB_FILE MASTER_DIR MASTER_VERSION IS_OFFICIAL_GATEWAY ENABLE_MASTER_OTA WEBHOOK_URL CHAT_ID WEBHOOK_SECRET
+export TG_TOKEN DB_FILE MASTER_DIR MASTER_VERSION IS_OFFICIAL_GATEWAY ENABLE_MASTER_OTA WEBHOOK_URL CHAT_ID WEBHOOK_SECRET DEBUG
 
 python3 "${MASTER_DIR}/webhook_master.py" &
 MASTER_PID=$!
