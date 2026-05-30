@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
+# [关键] 禁用 Python stdout 缓冲，确保所有 print/log 实时输出到容器日志
+ENV PYTHONUNBUFFERED=1
+
 # [目录构建] 创建中枢工作目录与数据持久化挂载点
 RUN mkdir -p /opt/ip_sentinel_master/data
 

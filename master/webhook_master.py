@@ -1571,6 +1571,11 @@ def main():
     global IS_OFFICIAL_GATEWAY, ENABLE_MASTER_OTA, WEBHOOK_URL, CHAT_ID
     global WEBHOOK_SECRET, DEBUG
 
+    # [诊断] 无条件打印环境变量原始值
+    _raw_debug = os.environ.get("DEBUG", "<MISSING>")
+    print(f"[Webhook Master] Raw env: DEBUG='{_raw_debug}' (type={type(_raw_debug).__name__})")
+    print(f"[Webhook Master] All env keys: {[k for k in os.environ.keys() if 'DEBUG' in k.upper() or 'debug' in k.lower()]}")
+
     # Reload from environment (in case of late binding)
     TG_TOKEN = os.environ.get("TG_TOKEN", TG_TOKEN)
     DB_FILE = os.environ.get("DB_FILE", DB_FILE)
