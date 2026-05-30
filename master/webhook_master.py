@@ -209,23 +209,28 @@ def generate_signed_url(target_ip, target_port, action_path, chat_id=None):
 
 
 def tg_api_call(method, data):
-    """Make a Telegram Bot API call using urllib."""
+    """Make a Telegram Bot API call using urllib with retry."""
     url = f"https://api.telegram.org/bot{TG_TOKEN}/{method}"
     debug_log(f"TG API -> {method} | chat_id={data.get('chat_id', 'N/A')}")
-    try:
-        payload = json.dumps(data).encode("utf-8")
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={"Content-Type": "application/json"}
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            debug_log(f"TG API <- {method} OK")
-            return result
-    except Exception as e:
-        print(f"[TG API] {method} failed: {e}")
-        debug_log(f"TG API <- {method} EXCEPTION: {type(e).__name__}: {e}")
-        return None
+    payload = json.dumps(data).encode("utf-8")
+
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                url, data=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                debug_log(f"TG API <- {method} OK")
+                return result
+        except Exception as e:
+            debug_log(f"TG API <- {method} attempt {attempt+1}/3 FAILED: {type(e).__name__}: {e}")
+            if attempt < 2:
+                time.sleep(2 * (attempt + 1))
+            else:
+                print(f"[TG API] {method} failed after 3 attempts: {e}")
+    return None
 
 
 def send_msg(chat_id, text):
