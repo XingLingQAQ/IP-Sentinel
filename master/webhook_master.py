@@ -277,13 +277,22 @@ def edit_ui(chat_id, message_id, text, keyboard):
 
 
 def answer_callback_query(cb_id, text=None, show_alert=False):
-    """Answer a callback query to clear the loading spinner."""
+    """Answer a callback query to clear the loading spinner.
+    Uses a short timeout since this is non-critical (just clears the spinner).
+    """
     data = {"callback_query_id": cb_id}
     if text:
         data["text"] = text
     if show_alert:
         data["show_alert"] = True
-    tg_api_call("answerCallbackQuery", data)
+    # Use short timeout - answerCallbackQuery is non-critical
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/answerCallbackQuery"
+    try:
+        payload = json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass  # Non-critical, just clear spinner
 
 
 def send_force_reply(chat_id, text):
@@ -1490,9 +1499,10 @@ class WebhookHandler(BaseHTTPRequestHandler):
             if reply_text and handle_reply_rename(chat_id, reply_text, text):
                 return
 
-        # Answer callback query to clear loading state
+        # Answer callback query in background (non-blocking) to clear loading spinner
+        # This must NOT block the main command handler - timeout here would delay everything
         if cb_id:
-            answer_callback_query(cb_id)
+            threading.Thread(target=answer_callback_query, args=(cb_id,), daemon=True).start()
 
         # Handle #REGISTER# messages
         if "#REGISTER#" in text:
