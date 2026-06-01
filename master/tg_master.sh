@@ -9,7 +9,7 @@ CONF="/opt/ip_sentinel_master/master.conf"
 [ ! -f "$CONF" ] && exit 1
 source "$CONF"
 
-REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/feature/v4.2.0-dual-stack"
+REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
 MASTER_VERSION=${MASTER_VERSION:-"3.5.0"}
 
 OFFSET_FILE="${MASTER_DIR}/.tg_offset"
