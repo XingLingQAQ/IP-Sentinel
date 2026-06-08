@@ -1,3 +1,13 @@
+quyền linh
+ngọc sùi
+công viên lê thị riêng
+bão áp thấp nhiệt đới
+nhập tịch
+đào tạo
+hưu trí
+xe buýt
+tàu hỏa
+sửu
 tỷ phú
 đồng
 doanh nhân
@@ -49,7 +59,6 @@ tín dụng
 nhà khoa học
 xăng
 học viện ngoại giao
-bão áp thấp nhiệt đới
 ngọc trinh
 đội tuyển bóng đá quốc gia brasil
 nvl
@@ -89,12 +98,3 @@ thịt lợn
 báo tuổi trẻ
 alejandro garnacho
 tai nạn giao thông
-bão
-phía bên kia thành phố tập 1
-dut
-an ninh mạng
-giáo sư
-spurs vs thunder
-người dẫn chương trình
-xe điện
-công ty cổ phần đầu tư mua bán nợ song long
