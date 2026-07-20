@@ -1,3 +1,13 @@
+halkbank
+altınkaynak
+61saat
+sözleşme
+tcmb
+adli tatil ne zaman
+kamudan haber
+kbs
+face
+internet haber
 fanatik
 francja anglia
 promosyon
@@ -29,7 +39,6 @@ iett
 milli eğitim müdürleri değişti
 halka arz
 gazete oku
-internet haber
 metrobüs durakları
 haberler
 gazeteler
@@ -63,8 +72,6 @@ bloomberg
 şirvan belediye başkanı
 17 temmuz bim kataloğu 2026
 memurlar net
-halkbank
-tcmb
 you tube
 facebook
 habertürk
@@ -91,10 +98,3 @@ milliyet
 motorine zam geldi
 whatsapp
 en son haber
-fotomaç
-ziraat
-ekonomi
-ebys
-vakıfbank
-ensonhaber
-merkez bankası
