@@ -1,0 +1,6 @@
+# Environment & secrets
+.env
+.env.*
+.env.d/
+*.env
+!*.env.example
