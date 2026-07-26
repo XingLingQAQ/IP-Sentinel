@@ -1,3 +1,13 @@
+weer
+mathieu van der poel
+pogoda
+david jonsson
+wetter
+weather
+hava durumu
+météo
+botsing
+b&b vol liefde
 russen
 sarah ferguson
 nrc
@@ -30,12 +40,9 @@ robert lewandowski
 inter miami - chicago fire
 22 juli
 stroomstoring eindhoven
-wetter
 eredivisie
 italië
-pogoda
 sergio pérez
-hava durumu
 het weer vandaag
 jelicia westhoff
 wegenvignet
@@ -82,7 +89,6 @@ valtteri bottas
 chatgpt
 airbnb
 ronde van frankrijk
-weer
 grand prix van belgië
 voetbalprimeur
 de bondgenoten
@@ -92,9 +98,3 @@ vladimir poetin
 nieuws
 valentijn driessen
 hvzeeland
-rabobank
-hooggerechtshof
-samenvatting spanje frankrijk
-ds de heer
-ad nieuws
-duitsland
