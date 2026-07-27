@@ -1,3 +1,13 @@
+impots
+andrew mountbatten windsor
+matthieu pigasse
+ambulance
+josé mourinho
+javier milei
+l'argentière-la-bessée
+meteo lyon
+la réunion
+meteo nancy
 bègles
 cyberpunk 2077
 l'éveil de la haute-loire
@@ -81,7 +91,6 @@ ligue 1
 kathy hochul
 hotel
 weather
-meteo lyon
 clima
 meteo caen
 ministre espagnol
@@ -89,12 +98,3 @@ meteo amiens
 voici
 starship
 meteo bordeaux
-meteo reims
-toulouse
-giorgia meloni
-bourse
-bbc news
-europe 1
-ascenseur
-sept à huit
-meteo montpellier
