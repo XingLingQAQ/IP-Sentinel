@@ -1,3 +1,13 @@
+franco baresi
+míchel
+brand kampen
+31 juli
+clima
+warmte
+hava durumu
+weather
+weer
+weer vandaag
 30 juli
 olieprijs
 marc-andré ter stegen
@@ -30,22 +40,17 @@ gpt
 openwaterzwemmen
 sylvia hoeks
 sappemeer
-warmte
 isack hadjar
 urska zigart
 kimi antonelli
 wetter
-clima
-hava durumu
 kodai sano
 buienradar
 bommenwerper
-weer
 mathieu van der poel
 leeds - wrexham
 pogoda
 david jonsson
-weather
 pis
 kamila sellier
 russen
@@ -93,8 +98,3 @@ daniel ortega
 bitcoin koers
 brand udenhout
 goog
-qmusic
-bbc sport
-elisabeth van belgië
-radio
-hln
