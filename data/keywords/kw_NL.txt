@@ -1,3 +1,13 @@
+brand kampen
+míchel
+31 juli
+clima
+warmte
+hava durumu
+weather
+weer
+weer vandaag
+nirmal purja
 30 juli
 olieprijs
 marc-andré ter stegen
@@ -29,20 +39,15 @@ bitcoin
 gpt
 openwaterzwemmen
 sappemeer
-warmte
 isack hadjar
 urska zigart
 kimi antonelli
 gianpiero lambiase
 wetter
-clima
-hava durumu
 kodai sano
-weer
 mathieu van der poel
 pogoda
 david jonsson
-weather
 météo
 botsing
 b&b vol liefde
@@ -93,8 +98,3 @@ goog
 qmusic
 elisabeth van belgië
 radio
-hln
-racingnews365
-judit polgar
-andrea stella
-de telegraaf
