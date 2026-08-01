@@ -1,3 +1,13 @@
+öğretmen
+antalya
+hazırlık maçı
+merkez bankası
+lig
+van hava durumu
+uzak şehir
+namaz vakti
+grok
+ezan
 esra erol var mısın yok musun bilge
 samsun hava durumu
 robot
@@ -12,7 +22,6 @@ denizli ulaşım
 sondakika
 borsa
 samsung galaxy s26 fe
-van hava durumu
 paros
 erdal beşikçioğlu
 kayseri hava durumu
@@ -89,12 +98,3 @@ ea sports fc 27
 bayburt
 nokia 300
 pmyo başvuru
-tercihler ne zaman açıklanacak
-doğu akdeniz üniversitesi
-kpss ortaöğretim başvuru ne zaman 2026
-aid
-türkiye haritası
-ösym
-bursa namaz
-halkbank
-altınkaynak
