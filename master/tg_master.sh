@@ -68,40 +68,65 @@ db_exec() {
     printf ".timeout 5000\n%s\n" "$1" | sqlite3 "$DB_FILE"
 }
 
-# [HMAC 动态签名引擎] 下发指令挂载带有时效性的哈希签名，防止重放与中间人篡改
+# ==========================================================
+# [安全漏洞 #108 修复] HMAC 签名引擎升级，实现参数全覆盖与双重握手降级
+# ==========================================================
 generate_signed_url() {
     local target_ip=$1
     local target_port=$2
     local action_path=$3
+    local extra_query=$4
     local current_t=$(date +%s)
     
-    local payload="${action_path}:${current_t}"
-    # [v4.1.7 致命修复] 弃用 -hmac，改用 -macopt 标准语法，彻底杜绝 TG 群组负数 ID 导致的 OpenSSL 参数注入崩溃
-    local signature=$(echo -n "$payload" | openssl dgst -sha256 -mac HMAC -macopt key:"$CHAT_ID" | awk '{print $NF}')
+    local payload_v2="${action_path}"
+    [ -n "$extra_query" ] && payload_v2="${payload_v2}?${extra_query}"
+    payload_v2="${payload_v2}:${current_t}"
     
-    echo "https://${target_ip}:${target_port}${action_path}?t=${current_t}&sign=${signature}"
+    local signature_v2=$(echo -n "$payload_v2" | openssl dgst -sha256 -mac HMAC -macopt key:"$CHAT_ID" | awk '{print $NF}')
+    
+    local url_v2="https://${target_ip}:${target_port}${action_path}?t=${current_t}&sign=${signature_v2}"
+    [ -n "$extra_query" ] && url_v2="${url_v2}&${extra_query}"
+    
+    echo "$url_v2"
 }
 
-# ==========================================================
-# [新增插入] v4.2.2 终极容灾火力网：自动解析多宿主 IP 并执行无缝降级重试
-# ==========================================================
+generate_signed_url_v1() {
+    local target_ip=$1
+    local target_port=$2
+    local action_path=$3
+    local extra_query=$4
+    local current_t=$(date +%s)
+    
+    local payload_v1="${action_path}:${current_t}"
+    local signature_v1=$(echo -n "$payload_v1" | openssl dgst -sha256 -mac HMAC -macopt key:"$CHAT_ID" | awk '{print $NF}')
+    
+    local url_v1="https://${target_ip}:${target_port}${action_path}?t=${current_t}&sign=${signature_v1}"
+    [ -n "$extra_query" ] && url_v1="${url_v1}&${extra_query}"
+    
+    echo "$url_v1"
+}
+
 call_agent() {
     local ips="$1"
     local port="$2"
     local path="$3"
-    local suffix="$4"
+    local extra_q="$4"
     local res="FAILED"
     
-    # 将长串中的下划线统一洗回逗号，确保万无一失的弹匣拆解
     local clean_ips=$(echo "$ips" | tr '_' ',')
     IFS=',' read -r -a ip_array <<< "$clean_ips"
     for ip in "${ip_array[@]}"; do
         if [ -n "$ip" ]; then
-            local url=$(generate_signed_url "$ip" "$port" "$path")
-            [ -n "$suffix" ] && url="${url}${suffix}"
+            # 优先使用完整的 V2 签名
+            local url_v2=$(generate_signed_url "$ip" "$port" "$path" "$extra_q")
+            res=$(curl -k -s --connect-timeout 4 -m 12 "$url_v2" || echo "FAILED")
             
-            # 缩短单次重试时间，实现用户无感知的秒级降级切换
-            res=$(curl -k -s --connect-timeout 4 -m 12 "$url" || echo "FAILED")
+            # 若对方返回 401 鉴权失败，说明其为老版本 Agent，触发平滑降级使用 V1 签名
+            if [[ "$res" == *"401"* ]] || [[ "$res" == *"Unauthorized"* ]]; then
+                local url_v1=$(generate_signed_url_v1 "$ip" "$port" "$path" "$extra_q")
+                res=$(curl -k -s --connect-timeout 4 -m 12 "$url_v1" || echo "FAILED")
+            fi
+            
             if [ "$res" != "FAILED" ] && [ -n "$res" ]; then
                 echo "$res"
                 return
@@ -117,14 +142,12 @@ call_agent() {
 db_exec "PRAGMA journal_mode=WAL;" > /dev/null 2>&1
 db_exec "PRAGMA synchronous=NORMAL;" > /dev/null 2>&1
 
-# 自动探测并动态扩展节点基础表结构，屏蔽已存在的报错
 db_exec "ALTER TABLE nodes ADD COLUMN region TEXT DEFAULT 'UNKNOWN';" 2>/dev/null
 db_exec "ALTER TABLE nodes ADD COLUMN node_alias TEXT;" 2>/dev/null
 db_exec "ALTER TABLE nodes ADD COLUMN enable_google TEXT DEFAULT 'true';" 2>/dev/null
 db_exec "ALTER TABLE nodes ADD COLUMN enable_trust TEXT DEFAULT 'true';" 2>/dev/null
 db_exec "ALTER TABLE nodes ADD COLUMN enable_ota TEXT DEFAULT 'false';" 2>/dev/null
 
-# 构建与动态扩展 IP 质量历史趋势库
 db_exec "CREATE TABLE IF NOT EXISTS ip_trend_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     node_name TEXT,
@@ -150,11 +173,19 @@ while true; do
             echo $((UPDATE_ID + 1)) > $OFFSET_FILE
             
             CHAT_ID=$(echo "$UPDATE" | jq -r '.message.chat.id // .callback_query.message.chat.id')
-            TEXT=$(echo "$UPDATE" | jq -r '.message.text // .callback_query.data')
-
-            # [UI 状态机] 提前提取交互回调 ID，确保后续 UI 重绘正常流转
+            
+            # [安全漏洞 #106 修复] 严格区分消息文本与按钮回调源
+            MSG_TEXT=$(echo "$UPDATE" | jq -r '.message.text // empty')
+            CB_DATA=$(echo "$UPDATE" | jq -r '.callback_query.data // empty')
             CB_ID=$(echo "$UPDATE" | jq -r '.callback_query.id // empty')
             MSG_ID=$(echo "$UPDATE" | jq -r '.callback_query.message.message_id // empty')
+            
+            # 优先级：按钮回调 > 纯文本
+            if [ -n "$CB_DATA" ]; then
+                TEXT="$CB_DATA"
+            else
+                TEXT="$MSG_TEXT"
+            fi
 
             # ----------------------------------------------------------
             # [业务流 A] 深海声呐态势感知一键入库模块
@@ -163,7 +194,6 @@ while true; do
                 IFS='|' read -r MAGIC RAW_NODE_ID RAW_SCORE RAW_GOOG_ST RAW_NF_ST RAW_GPT_ST <<< "$TEXT"
                 CHAT_ID=$(echo "$CHAT_ID" | tr -cd '0-9-')
                 
-                # [安全防御] 严格正则清洗，封死所有 SQL 注入通道
                 NODE_ID=$(echo "$RAW_NODE_ID" | tr -cd 'a-zA-Z0-9_.-')
                 SCORE=$(echo "$RAW_SCORE" | tr -cd '0-9')
                 GOOG_ST=$(echo "$RAW_GOOG_ST" | tr -d '"'\''\`\$\|&;<>\n\r')
@@ -180,7 +210,6 @@ while true; do
                             -d "show_alert=false" > /dev/null
                     fi
 
-                    # 无损修改原消息，擦除入库按钮保留逃生舱
                     if [ -n "$MSG_ID" ]; then
                         curl -s --connect-timeout 5 -m 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/editMessageReplyMarkup" \
                             -H "Content-Type: application/json" \
@@ -204,8 +233,6 @@ while true; do
             # ----------------------------------------------------------
             if [[ "$REPLY_TO_TEXT" == *"✏️ 请回复本消息以重命名节点:"* ]]; then
                 TARGET_NODE=$(echo "$REPLY_TO_TEXT" | grep -v "✏️" | grep -v "仅限" | tr -d '\` ' | tr -cd 'a-zA-Z0-9_.-' | head -n 1)
-                
-                # 黑名单清洗策略，保护内部路由特征并容纳 Unicode
                 NEW_ALIAS=$(echo "$TEXT" | sed 's/_/-/g' | tr -d '"'\''\`\$\|&;<>\n\r:' | cut -c 1-30)
                 
                 if [ -n "$TARGET_NODE" ] && [ -n "$NEW_ALIAS" ]; then
@@ -213,7 +240,6 @@ while true; do
                 fi
             fi
 
-            # 消除终端 UI 加载状态圈
             if [ -n "$CB_ID" ]; then
                 curl -s --connect-timeout 5 -m 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/answerCallbackQuery" -d "callback_query_id=${CB_ID}" > /dev/null
             fi
@@ -224,7 +250,6 @@ while true; do
             if [[ "$TEXT" == *"#REGISTER#"* ]]; then
                 REG_LINE=$(echo "$TEXT" | grep "#REGISTER#" | head -n 1 | tr -d '\` ')
                 
-                # 兼容性拆包: 自动判定不同世代版本的挂载载荷
                 FIELD_COUNT=$(echo "$REG_LINE" | awk -F'|' '{print NF}')
                 if [ "$FIELD_COUNT" -ge 7 ]; then
                     IFS='|' read -r MAGIC RAW_REGION RAW_NODE RAW_IP RAW_PORT RAW_ALIAS RAW_OTA <<< "$REG_LINE"
@@ -252,9 +277,9 @@ while true; do
                 AGENT_OTA=$(echo "$RAW_OTA" | tr -cd 'a-z')
                 [ -z "$AGENT_OTA" ] && AGENT_OTA="false"
                 
-                # SSRF 拦截墙
-                if [[ "$AGENT_IP" =~ ^127\.|^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^::1$|^localhost$ ]]; then
-                    send_msg "$CHAT_ID" "⛔ **安全拦截**：禁止注册内网或回环 IP，防止 SSRF 攻击渗透。"
+                # [安全漏洞 #107 修复] 拒绝私有、链路本地及保留 IP 防御 SSRF 内网探测
+                if [[ "$AGENT_IP" =~ ^127\.|^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^169\.254\.|^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|^::1$|^[fF][cdCD][0-9a-fA-F]{2}:|^[fF][eE][89abAB][0-9a-fA-F]: ]]; then
+                    send_msg "$CHAT_ID" "⛔ **安全拦截**：禁止注册私网/保留/回环 IP，防止 SSRF 攻击渗透。"
                     continue
                 fi
                 
@@ -263,10 +288,8 @@ while true; do
                     continue
                 fi
 
-                # [v4.2.2 容灾对齐] 允许 agent_ip 字段以逗号分隔的形式完整固化多路由通道
                 db_exec "INSERT INTO nodes (chat_id, node_name, agent_ip, agent_port, last_seen, region, node_alias, enable_ota) VALUES ('$CHAT_ID', '$NODE_NAME', '$AGENT_IP', '$AGENT_PORT', CURRENT_TIMESTAMP, '$AGENT_REGION', '$NODE_ALIAS', '$AGENT_OTA') ON CONFLICT(chat_id, node_name) DO UPDATE SET agent_ip='$AGENT_IP', agent_port='$AGENT_PORT', last_seen=CURRENT_TIMESTAMP, region='$AGENT_REGION', node_alias='$NODE_ALIAS', enable_ota='$AGENT_OTA';"
                 
-                # 统一将下划线替换为逗号，再进行格式化输出，兼容您的所有测试版本
                 FMT_AGENT_IP=$(echo "$AGENT_IP" | tr '_' ',')
                 MAIN_SHOW_IP=$(echo "$FMT_AGENT_IP" | cut -d',' -f1)
                 BACKUP_SHOW_IP=$(echo "$FMT_AGENT_IP" | cut -d',' -f2-)
@@ -319,31 +342,36 @@ while true; do
                         BTNS="[[{\"text\":\"🌍 进入全球雷达 (管理节点)\",\"callback_data\":\"list_nodes\"}], [{\"text\":\"🚀 唤醒全局巡逻\",\"callback_data\":\"all_run\"}, {\"text\":\"📊 获取全局简报\",\"callback_data\":\"all_reports\"}], [{\"text\":\"🌟 前往 GitHub 点亮星标\",\"url\":\"https://github.com/hotyue/IP-Sentinel\"}]]"
                     fi
                     DISP_MASTER="${MASTER_NODE_NAME:-未命名中枢}"
-                    # [UI 微调] 移除 📍 棒棒糖图标，保持与 "当前版本: " 的 4 个汉字对齐
                     TEXT_MSG="🛡️ **IP-Sentinel 控制中枢**\n${VER_INFO}\n中枢节点: \`${DISP_MASTER}\`\n\n📊 节点状态: 共有 \`${NODE_COUNT}\` 台节点在线\n欢迎回来，管理者。请下达系统指令："
                     send_ui "$CHAT_ID" "$TEXT_MSG" "$BTNS"
                     ;;
                     
                 "all_ota_confirm")
+                    # [安全漏洞 #106 修复] 拦截未授权纯文本消息
+                    if [ -z "$CB_ID" ]; then send_msg "$CHAT_ID" "⛔ 安全拦截：非法特权执行环境。"; continue; fi
                     CONFIRM_BTNS="[[{\"text\":\"🚨 我已了解风险，下发核按钮指令！\",\"callback_data\":\"all_ota_execute\"}], [{\"text\":\"取消操作\",\"callback_data\":\"/start\"}]]"
                     WARNING_MSG="☢️ **【最高指令：全舰队 OTA 升级】**\n\n此操作将向您名下**所有开启 OTA 权限的节点**下发重组指令，强制从云端拉取最新代码并进行热重载。\n\n⚠️ **核按钮风险提示**：\n1. 升级过程中守护进程会短暂重启，节点可能出现临时离线。\n2. 若遇 GitHub 源屏蔽或网络极度恶劣，少数节点可能需要手动干预。\n\n**是否确定挂载并执行 OTA 指令？**"
                     send_ui "$CHAT_ID" "$WARNING_MSG" "$CONFIRM_BTNS"
                     ;;
 
                 "all_ota_execute")
+                    # [安全漏洞 #106 修复]
+                    if [ -z "$CB_ID" ]; then send_msg "$CHAT_ID" "⛔ 安全拦截：非法特权执行环境。"; continue; fi
                     NODE_DATA=$(db_exec "SELECT node_name, agent_ip, agent_port FROM nodes WHERE chat_id='$CHAT_ID' AND enable_ota='true';")
                     if [ -z "$NODE_DATA" ]; then
                         send_msg "$CHAT_ID" "⚠️ 您名下暂无开启 OTA 权限的在线节点。"
                     else
                         send_msg "$CHAT_ID" "📢 **司令部指令下达：正在唤醒全舰队执行 OTA 升级...**%0A*(节点升级成功后会主动发回新的入库确认，请注意查收)*"
                         echo "$NODE_DATA" | while IFS='|' read -r NNAME AIP APORT; do
-                            call_agent "$AIP" "$APORT" "/trigger_ota" > /dev/null &
+                            call_agent "$AIP" "$APORT" "/trigger_ota" "" > /dev/null &
                             sleep 0.3
                         done
                     fi
                     ;;
 
                 "master_ota_confirm")
+                    # [安全漏洞 #106 修复]
+                    if [ -z "$CB_ID" ]; then send_msg "$CHAT_ID" "⛔ 安全拦截：非法特权执行环境。"; continue; fi
                     CONFIRM_BTNS="[[{\"text\":\"🚨 确认重构司令部\",\"callback_data\":\"master_ota_execute\"}], [{\"text\":\"取消操作\",\"callback_data\":\"/start\"}]]"
                     WARNING_MSG="☢️ **【最高指令：中枢金蝉脱壳】**\n\n此操作将拉取最新源码并强行覆盖司令部核心进程。\n\n⚠️ **风险提示**：\n升级期间司令部将短暂失联（约3-5秒）。完成后会自动发送捷报。\n\n**是否确定执行司令部自我升级？**"
                     if [ -n "$MSG_ID" ]; then
@@ -354,6 +382,11 @@ while true; do
                     ;;
 
                 "master_ota_execute")
+                    # [安全漏洞 #106 修复]
+                    if [ -z "$CB_ID" ] || [ "${ENABLE_MASTER_OTA:-false}" != "true" ]; then
+                        send_msg "$CHAT_ID" "⛔ 安全拦截：非法特权执行环境或权限未开。"
+                        continue
+                    fi
                     if [ -n "$MSG_ID" ]; then
                         edit_msg "$CHAT_ID" "$MSG_ID" "⏳ 正在下载重构图纸，司令部即将进入静默重启..."
                     else
@@ -362,7 +395,6 @@ while true; do
 
                     curl -fsSL "${REPO_RAW_URL}/master/install_master.sh" -o "/tmp/install_master.sh"
                     
-                    # [OTA 防砖机制] 严格校验脚本语法完整性，防止传输中断导致司令部失联
                     if ! bash -n "/tmp/install_master.sh" >/dev/null 2>&1; then
                         if [ -n "$MSG_ID" ]; then
                             edit_msg "$CHAT_ID" "$MSG_ID" "❌ OTA 传输受损：脚本下载不完整，已触发防砖熔断，升级取消！"
@@ -391,7 +423,7 @@ while true; do
                     else
                         send_msg "$CHAT_ID" "📢 **司令部指令下达：正在召唤所有哨兵回传简报...**%0A*(为防止触发 TG 官方限流，简报将排队依次送达，请耐心等待)*"
                         echo "$NODE_DATA" | while IFS='|' read -r NNAME AIP APORT; do
-                            call_agent "$AIP" "$APORT" "/trigger_report" > /dev/null &
+                            call_agent "$AIP" "$APORT" "/trigger_report" "" > /dev/null &
                             sleep 2  
                         done
                     fi
@@ -404,7 +436,7 @@ while true; do
                     else
                         send_msg "$CHAT_ID" "📢 **司令部指令下达：正在唤醒所有哨兵执行系统维护...**"
                         echo "$NODE_DATA" | while IFS='|' read -r NNAME AIP APORT; do
-                            call_agent "$AIP" "$APORT" "/trigger_run" > /dev/null &
+                            call_agent "$AIP" "$APORT" "/trigger_run" "" > /dev/null &
                             sleep 0.2  
                         done
                     fi
@@ -425,7 +457,7 @@ while true; do
                         if [ -n "$AGENT_IP" ] && [ -n "$AGENT_PORT" ]; then
                             send_msg "$CHAT_ID" "⏳ 正在向 \`$TARGET_NODE\` ($AGENT_IP) 下发 [quality] 指令，请稍候..."
                             
-                            RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_quality")
+                            RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_quality" "")
                             
                             if [ "$RESPONSE" == "FAILED" ]; then
                                 send_msg "$CHAT_ID" "❌ 指令下发超时或失败！请检查节点公网 IP 或防火墙端口 ($AGENT_PORT) 是否放行。"
@@ -491,8 +523,8 @@ while true; do
                         BTNS="["
                         while IFS='|' read -r REGION_NAME NODE_COUNT; do
                             [ -z "$REGION_NAME" ] && REGION_NAME="UNKNOWN"
-                        FLAG=$(get_flag "$REGION_NAME")
-                        BTNS="$BTNS[{\"text\":\"$FLAG $REGION_NAME ($NODE_COUNT 台)\",\"callback_data\":\"region:$REGION_NAME\"}],"
+                            FLAG=$(get_flag "$REGION_NAME")
+                            BTNS="$BTNS[{\"text\":\"$FLAG $REGION_NAME ($NODE_COUNT 台)\",\"callback_data\":\"region:$REGION_NAME\"}],"
                         done <<< "$REGION_DATA"
                         BTNS="$BTNS[{\"text\":\"🏠 回到司令部\",\"callback_data\":\"/start\"}]]"
                         send_ui "$CHAT_ID" "🌍 **全视界战略雷达**\n已为您聚合当前舰队的部署大区，请选择要检阅的战区：" "$BTNS"
@@ -554,8 +586,7 @@ while true; do
                         BTN_CONFIG="[{\"text\":\"✏️ 更改终端展示代号\",\"callback_data\":\"rename:$TARGET_NODE\"}]"
                     fi
                     
-                    # 变更 callback_data 由 del 变为 del_confirm
-BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"del_confirm:$TARGET_NODE\"}, {\"text\":\"⬅️ 返回战区列表\",\"callback_data\":\"list_nodes\"}]"
+                    BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"del_confirm:$TARGET_NODE\"}, {\"text\":\"⬅️ 返回战区列表\",\"callback_data\":\"list_nodes\"}]"
 
                     BTNS="[$BTN_ACTION, $BTN_TOGGLE, $BTN_CONFIG, $BTN_DANGER]"
                     TEXT_MSG="⚙️ **目标锁定**: \`$TARGET_ALIAS\`\n(底层标识: \`$TARGET_NODE\`)\n🌐 IP 坐标: \`$A_IP\`\n🕒 最后通讯: \`$LAST_SEEN\`\n\n请下达精确控制指令："
@@ -571,12 +602,24 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                     IFS=':' read -r CMD MOD_NAME TARGET_NODE TARGET_STATE <<< "$TEXT"
                     CHAT_ID=$(echo "$CHAT_ID" | tr -cd '0-9-')
                     
+                    # [安全漏洞 #105 修复] 强制白名单校验防 SQL 注入
+                    if [[ ! "$MOD_NAME" =~ ^(google|trust)$ ]] || [[ ! "$TARGET_STATE" =~ ^(true|false)$ ]] || [[ ! "$TARGET_NODE" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+                        send_msg "$CHAT_ID" "⛔ 安全拦截：控制参数不合法！"
+                        continue
+                    fi
+                    
+                    VALID_OWNER=$(db_exec "SELECT 1 FROM nodes WHERE chat_id='$CHAT_ID' AND node_name='$TARGET_NODE' LIMIT 1;")
+                    if [ "$VALID_OWNER" != "1" ]; then
+                        continue
+                    fi
+                    
                     AGENT_INFO=$(db_exec "SELECT agent_ip, agent_port FROM nodes WHERE chat_id='$CHAT_ID' AND node_name='$TARGET_NODE' LIMIT 1;")
                     AGENT_IP=$(echo "$AGENT_INFO" | cut -d'|' -f1)
                     AGENT_PORT=$(echo "$AGENT_INFO" | cut -d'|' -f2)
                     
                     if [ -n "$AGENT_IP" ] && [ -n "$AGENT_PORT" ]; then
-                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_toggle" "&mod=${MOD_NAME}&state=${TARGET_STATE}")
+                        # 传入查询参数确保被 HMAC 安全签名
+                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_toggle" "mod=${MOD_NAME}&state=${TARGET_STATE}")
                         
                         if [[ "$RESPONSE" == *"Action Accepted"* ]]; then
                             db_exec "UPDATE nodes SET enable_${MOD_NAME}='$TARGET_STATE' WHERE chat_id='$CHAT_ID' AND node_name='$TARGET_NODE';"
@@ -605,7 +648,7 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                             else
                                 BTN_CONFIG="[{\"text\":\"✏️ 更改终端展示代号\",\"callback_data\":\"rename:$TARGET_NODE\"}]"
                             fi
-                            BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"del:$TARGET_NODE\"}, {\"text\":\"⬅️ 返回战区列表\",\"callback_data\":\"list_nodes\"}]"
+                            BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"del_confirm:$TARGET_NODE\"}, {\"text\":\"⬅️ 返回战区列表\",\"callback_data\":\"list_nodes\"}]"
 
                             BTNS="[$BTN_ACTION, $BTN_TOGGLE, $BTN_CONFIG, $BTN_DANGER]"
                             TARGET_ALIAS=$(db_exec "SELECT IFNULL(node_alias, node_name) FROM nodes WHERE chat_id='$CHAT_ID' AND node_name='$TARGET_NODE' LIMIT 1;")
@@ -637,14 +680,12 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                     TARGET_NODE=$(echo "${TEXT#*:}" | tr -cd 'a-zA-Z0-9_.-')
                     CHAT_ID=$(echo "$CHAT_ID" | tr -cd '0-9-')
                     
-                    # [验权防御] 防止通过伪造回调接口越权摧毁他人节点档案
                     VALID_OWNER=$(db_exec "SELECT 1 FROM nodes WHERE chat_id='$CHAT_ID' AND node_name='$TARGET_NODE' LIMIT 1;")
                     
                     if [ "$VALID_OWNER" == "1" ]; then
                         db_exec "DELETE FROM nodes WHERE chat_id='$CHAT_ID' AND node_name='$TARGET_NODE';"
                         db_exec "DELETE FROM ip_trend_log WHERE node_name='$TARGET_NODE';"
                         
-                        # 销毁成功后，动态编辑当前面板以防点击残留，并发送捷报
                         if [ -n "$MSG_ID" ]; then
                             edit_msg "$CHAT_ID" "$MSG_ID" "🗑️ 节点 \`$TARGET_NODE\` 的档案及污染趋势历史已被强行抹除。"
                         else
@@ -659,7 +700,6 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                         continue
                     fi
                     
-                    # 销毁后重新加载战区级雷达矩阵
                     REGION_DATA=$(db_exec "SELECT region, COUNT(*) FROM nodes WHERE chat_id='$CHAT_ID' GROUP BY region;")
                     if [ -z "$REGION_DATA" ]; then
                         send_msg "$CHAT_ID" "⚠️ 当前司令部已无任何节点挂载。"
@@ -694,9 +734,9 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                     if [ -n "$AGENT_IP" ] && [ -n "$AGENT_PORT" ]; then
                         send_msg "$CHAT_ID" "⏳ 正在向 \`$TARGET_NODE\` 下发重命名指令，正在建立加密隧道..."
                         
-                        # [防线穿越] 借由 Base64 编码对下发特征进行混淆与防篡改护甲加持
                         ALIAS_B64=$(echo -n "$NEW_ALIAS" | base64 | tr -d '\n' | tr '+/' '-_')
-                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_rename" "&b64=${ALIAS_B64}")
+                        # 附加参数供 HMAC 签名覆盖
+                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_rename" "b64=${ALIAS_B64}")
                         
                         if [ "$RESPONSE" == "FAILED" ]; then
                             send_msg "$CHAT_ID" "❌ 指令下发超时！为防范劫持风险，已终止请求。"
@@ -725,7 +765,6 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                     AGENT_IP=$(echo "$AGENT_INFO" | cut -d'|' -f1)
                     AGENT_PORT=$(echo "$AGENT_INFO" | cut -d'|' -f2)
 
-                    # [修正点] 必须保留这层外壳判断
                     if [ -n "$AGENT_IP" ] && [ -n "$AGENT_PORT" ]; then
                         if [ -n "$MSG_ID" ]; then
                             edit_msg "$CHAT_ID" "$MSG_ID" "⏳ 正在向 \`$TARGET_NODE\` 发送 OTA 触发报文..."
@@ -733,7 +772,7 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                             send_msg "$CHAT_ID" "⏳ 正在向 \`$TARGET_NODE\` 发送 OTA 触发报文..."
                         fi
                         
-                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_ota")
+                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_ota" "")
                         
                         if [ "$RESPONSE" == "FAILED" ]; then
                             TEXT_RES="❌ OTA 指令下发彻底失败！链路异常或严禁使用 HTTP 降级通讯。"
@@ -762,7 +801,6 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                     AGENT_IP=$(echo "$AGENT_INFO" | cut -d'|' -f1)
                     AGENT_PORT=$(echo "$AGENT_INFO" | cut -d'|' -f2)
 
-                    # [修正点] 必须保留这层外壳判断
                     if [ -n "$AGENT_IP" ] && [ -n "$AGENT_PORT" ]; then
                         if [ -n "$MSG_ID" ]; then
                             edit_msg "$CHAT_ID" "$MSG_ID" "⏳ 正在向 \`$TARGET_NODE\` ($AGENT_IP) 下发 [$ACTION_TYPE] 指令，请稍候..."
@@ -770,7 +808,7 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                             send_msg "$CHAT_ID" "⏳ 正在向 \`$TARGET_NODE\` ($AGENT_IP) 下发 [$ACTION_TYPE] 指令，请稍候..."
                         fi
                         
-                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_${ACTION_TYPE}")
+                        RESPONSE=$(call_agent "$AGENT_IP" "$AGENT_PORT" "/trigger_${ACTION_TYPE}" "")
                         
                         if [ "$RESPONSE" == "FAILED" ]; then
                             TEXT_RES="❌ 指令下发超时或失败！为保护链路安全，已终止通信 (严禁降级为 HTTP)。"
@@ -800,9 +838,7 @@ BTN_DANGER="[{\"text\":\"🗑️ 从中枢销毁该档案\",\"callback_data\":\"
                     fi
                     ;;
 
-
                 trend:*)
-                    # [态势感知面板] 提取近 15 次的历史追踪记录
                     TARGET_NODE=$(echo "${TEXT#*:}" | tr -cd 'a-zA-Z0-9_.-')
                     CHAT_ID=$(echo "$CHAT_ID" | tr -cd '0-9-')
                     
