@@ -162,8 +162,18 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(b"401 Unauthorized: Replay Attack Detected\n")
                 return
                 
-            # [身份核验] 数据完整性校验，使用 compare_digest 免疫时序探测攻击
-            msg = f"{req_path}:{req_t}".encode('utf-8')
+            # ==========================================================
+            # [安全升级] 漏洞 #108 修复：HMAC 覆盖完整查询参数防篡改
+            # ==========================================================
+            extra_payload = req_path
+            
+            # 精确还原 Master 下发时的 Query 参数拼接序列
+            if 'mod' in query and 'state' in query:
+                extra_payload += f"?mod={query['mod'][0]}&state={query['state'][0]}"
+            elif 'b64' in query:
+                extra_payload += f"?b64={query['b64'][0]}"
+                
+            msg = f"{extra_payload}:{req_t}".encode('utf-8')
             expected_sign = hmac.new(AUTH_TOKEN.encode('utf-8'), msg, hashlib.sha256).hexdigest()
             
             if not hmac.compare_digest(expected_sign, req_sign):
