@@ -60,7 +60,7 @@ render_ui() {
     local buttons="$4"
 
     if [ -n "$msg_id" ]; then
-        # 1. 尝试物理删除旧面板，实现完美沉底转移
+        # 1. 按钮触发：尝试物理删除旧面板，实现完美沉底转移
         local del_res=$(curl -s --connect-timeout 5 -m 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/deleteMessage" \
             -d "chat_id=$chat_id" -d "message_id=$msg_id")
         
@@ -70,9 +70,24 @@ render_ui() {
                 -H "Content-Type: application/json" \
                 -d "{\"chat_id\":\"$chat_id\",\"message_id\":\"$msg_id\",\"reply_markup\":{\"inline_keyboard\":[]}}" > /dev/null
         fi
+    else
+        # 3. [新增] 文本触发 (如输入/start)：尝试抹除全局记录的上一个遗留面板
+        if [ -f "${MASTER_DIR}/.last_ui_id" ]; then
+            local last_ui=$(cat "${MASTER_DIR}/.last_ui_id")
+            curl -s --connect-timeout 5 -m 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/deleteMessage" \
+                -d "chat_id=$chat_id" -d "message_id=$last_ui" > /dev/null
+        fi
     fi
-    # 3. 无论如何，在最底部发送全新面板，杜绝视线跳跃
-    send_ui "$chat_id" "$text" "$buttons"
+    
+    # 4. 无论如何，在最底部发送全新面板，并捕获最新 message_id 记录下来
+    local res=$(curl -s --connect-timeout 5 -m 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+        -H "Content-Type: application/json" \
+        -d "{\"chat_id\":\"$chat_id\",\"text\":\"$text\",\"parse_mode\":\"Markdown\",\"reply_markup\":{\"inline_keyboard\":$buttons}}")
+    
+    local new_id=$(echo "$res" | jq -r '.result.message_id // empty')
+    if [ -n "$new_id" ] && [ "$new_id" != "null" ]; then
+        echo "$new_id" > "${MASTER_DIR}/.last_ui_id"
+    fi
 }
 
 # [核心重构] 文本沉底重绘引擎
@@ -204,6 +219,10 @@ while true; do
             
             # [安全漏洞 #106 修复] 严格区分消息文本与按钮回调源
             MSG_TEXT=$(echo "$UPDATE" | jq -r '.message.text // empty')
+            
+            # 👇 --- 新增这一行：提取用户的文本气泡 ID --- 👇
+            USER_MSG_ID=$(echo "$UPDATE" | jq -r '.message.message_id // empty')
+            
             CB_DATA=$(echo "$UPDATE" | jq -r '.callback_query.data // empty')
             CB_ID=$(echo "$UPDATE" | jq -r '.callback_query.id // empty')
             MSG_ID=$(echo "$UPDATE" | jq -r '.callback_query.message.message_id // empty')
@@ -347,6 +366,13 @@ while true; do
             # ----------------------------------------------------------
             case "$TEXT" in
                 "/start"|"/menu")
+                    # 👇 --- 新增这段逻辑：抹杀用户发送的 /start 文本指令 --- 👇
+                    if [ -n "$USER_MSG_ID" ] && [ -z "$CB_ID" ]; then
+                        curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/deleteMessage" \
+                            -d "chat_id=$CHAT_ID" -d "message_id=$USER_MSG_ID" > /dev/null
+                    fi
+                    # 👆 ----------------------------------------------------- 👆
+                    
                     REMOTE_VER=$(curl -s -m 2 "${REPO_RAW_URL}/version.txt" | grep "^MASTER_VERSION=" | cut -d'=' -f2 | tr -d '[:space:]')
                     VER_INFO="当前版本: \`v${MASTER_VERSION}\`"
                     
