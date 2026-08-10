@@ -1,16 +1,8 @@
-botic van de zandschulp
-swimming
-news
-games
-china
-tatort
-hulpdiensten
-droogte duitsland
-rafael van der vaart
-sven mislintat
 cycling
+swimming
 travel
 flights
+news
 inter miami - monterrey
 morgan freeman
 stroomstoring venray
@@ -25,6 +17,7 @@ donald trump
 luchtmacht
 youri baas
 portugese oorlogsschepen kwallen
+games
 sports
 movies
 music
@@ -37,6 +30,7 @@ joey veerman
 werklozen uitkering buitenland
 ongeluk voorstraat dordrecht
 inter miami
+botic van de zandschulp
 inter miami - san luis
 brand baarlo
 weer vandaag
@@ -98,3 +92,9 @@ weather
 nirmal purja
 30 juli
 olieprijs
+marc-andré ter stegen
+prinses
+benzine
+rand paul
+ceuta
+portugal

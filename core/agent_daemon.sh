@@ -114,16 +114,13 @@ def clean_used_signs():
     for s in expired:
         del USED_SIGNS[s]
 
-# [权限鉴权] 提取 HMAC_KEY（优先）或 CHAT_ID 作为 PSK 预共享密钥
+# [权限鉴权] 提取 CHAT_ID 作为 PSK 预共享密钥
 AUTH_TOKEN = ""
 if os.path.exists('/opt/ip_sentinel/config.conf'):
     with open('/opt/ip_sentinel/config.conf', 'r') as f:
         for line in f:
             line = line.strip()
-            if line.startswith('HMAC_KEY='):
-                AUTH_TOKEN = line.split('=', 1)[1].strip('"\'')
-                break
-            elif line.startswith('CHAT_ID=') and not AUTH_TOKEN:
+            if line.startswith('CHAT_ID='):
                 AUTH_TOKEN = line.split('=', 1)[1].strip('"\'')
                 break
 
@@ -165,20 +162,11 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(b"401 Unauthorized: Replay Attack Detected\n")
                 return
                 
-            # [安全修复 #108] 签名范围覆盖所有查询参数 — 防止 mod/state/b64 被中间人篡改
-            # 构建确定性签名字符串：path + 排序后的查询参数（排除 sign 本身）
-            sorted_params = sorted((k, v[0]) for k, v in query.items() if k != 'sign')
-            param_str = '&'.join(f'{k}={v}' for k, v in sorted_params)
+            # [身份核验] 数据完整性校验，使用 compare_digest 免疫时序探测攻击
+            msg = f"{req_path}:{req_t}".encode('utf-8')
+            expected_sign = hmac.new(AUTH_TOKEN.encode('utf-8'), msg, hashlib.sha256).hexdigest()
             
-            # [向后兼容] 同时支持新旧两种签名格式：
-            #   新格式: path:t=TIME&mod=x&state=y  (参数名+值)
-            #   旧格式: path:TIME                   (仅时间戳数字)
-            msg_new = f"{req_path}:{param_str}".encode('utf-8')
-            msg_old = f"{req_path}:{req_t}".encode('utf-8')
-            expected_sign_new = hmac.new(AUTH_TOKEN.encode('utf-8'), msg_new, hashlib.sha256).hexdigest()
-            expected_sign_old = hmac.new(AUTH_TOKEN.encode('utf-8'), msg_old, hashlib.sha256).hexdigest()
-            
-            if not (hmac.compare_digest(expected_sign_new, req_sign) or hmac.compare_digest(expected_sign_old, req_sign)):
+            if not hmac.compare_digest(expected_sign, req_sign):
                 self.send_response(401)
                 self.end_headers()
                 self.wfile.write(b"401 Unauthorized: Signature Mismatch\n")

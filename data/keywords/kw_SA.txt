@@ -1,13 +1,3 @@
-weather
-ماك
-weather today
-house of the dragon season 3
-منصه
-alexandra eala
-وفاء عامر
-نظام إيرادات الدولة
-تمثيل
-أبطال آسيا
 aryna sabalenka
 inter miami vs c.f. monterrey standings
 إنتر ميامي ضد مونتيري
@@ -19,6 +9,7 @@ remo vs atlético mineiro
 الواقع
 xiaomi redmi note 17
 ذهب اليوم
+alexandra eala
 كولومبوس كرو ضد باتشوكا
 columbus vs pachuca
 فيورنتينا
@@ -27,6 +18,7 @@ columbus vs pachuca
 abhijeet dipke
 ايفون 18
 نادي الخلود
+ماك
 المذيعة سارة خليفة
 موساد
 forecast
@@ -59,6 +51,7 @@ sri lanka vs pakistan
 الطقس
 excessive heat
 egypt earthquakes
+weather today
 telegram
 طهران
 عبد الله الرويشد
@@ -98,3 +91,10 @@ leeds vs sunderland
 التحالف البحري الدفاعي
 google pixel 11 pro
 كارلوس اسبي
+carlos espi
+نادي ليفربول
+al jazeera news
+saudi nuclear deal
+tom holland
+سي إن إن
+ليفربول ضد ريكسهام
