@@ -169,9 +169,9 @@ while true; do
             MSG_ID=$(echo "$UPDATE" | jq -r '.callback_query.message.message_id // empty')
 
             # [安全修复 #106] Telegram 发送者鉴权 — 只有 MASTER_CHAT_ID 能执行特权命令
-            SENDER_ID=$(echo "$UPDATE" | jq -r '.message.from.id // .callback_query.from.id // 0' 2>/dev/null)
-            if [ "$SENDER_ID" != "$MASTER_CHAT_ID" ] && [ "$SENDER_ID" != "0" ]; then
-                # 静默拒绝非授权用户，不泄露任何信息
+            # 使用 CHAT_ID（已从 update 提取）与 MASTER_CHAT_ID 比较，兼容私聊/群组场景
+            if [ "$CHAT_ID" != "$MASTER_CHAT_ID" ] && [ -n "$MASTER_CHAT_ID" ]; then
+                # 静默拒绝非授权 chat，不泄露任何信息
                 if [ -n "$CB_ID" ]; then
                     curl -s --connect-timeout 5 -m 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/answerCallbackQuery" \
                         -d "callback_query_id=${CB_ID}" \
