@@ -1,3 +1,13 @@
+flights
+time
+concerts
+sports
+games
+zilla fatu
+mcdonald's
+delivery
+fitness
+wnba
 elina svitolina
 funeral director
 getty images
@@ -11,7 +21,6 @@ cadbury treasure hunt gold egg
 swimming
 travel
 schools
-flights
 jobs
 coffee
 the financial times
@@ -20,14 +29,12 @@ inter miami vs c.f. monterrey standings
 artificial intelligence news
 ronaldo
 cycling
-concerts
 music
 liverpool transfer news fabrizio romano
 movies
 alexandra eala
 twitch
 chicago vs necaxa
-wnba
 t
 kemi badenoch council housing policy
 scottish sun
@@ -91,10 +98,3 @@ baresi
 liam delap
 product recall
 kate garraway
-klarna
-meteor showers
-declan donnelly kevin keegan tribute
-pakistan vs sri lanka
-board of peace
-pożar
-ukraine news
