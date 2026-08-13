@@ -1,12 +1,20 @@
+hotels
+fitness
+meditation
+sports
+travel
+natalie harp
+swimming
+movies
+coco gauff
+cruzeiro vs flamengo
 flights
 time
 concerts
-sports
 games
 zilla fatu
 mcdonald's
 delivery
-fitness
 wnba
 elina svitolina
 funeral director
@@ -18,8 +26,6 @@ faith curran
 assassins creed black flag sequel
 islam makhachev
 cadbury treasure hunt gold egg
-swimming
-travel
 schools
 jobs
 coffee
@@ -31,7 +37,6 @@ ronaldo
 cycling
 music
 liverpool transfer news fabrizio romano
-movies
 alexandra eala
 twitch
 chicago vs necaxa
@@ -93,8 +98,3 @@ uk 35c temperature forecast
 house flies
 man city
 satellite imagery
-sony playstation disc future
-baresi
-liam delap
-product recall
-kate garraway
