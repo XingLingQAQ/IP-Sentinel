@@ -1,13 +1,19 @@
 hotels
+fitness
+meditation
+sports
+swimming
+travel
+natalie harp
+movies
+elena rybakina
+coco gauff
 flights
 concerts
-travel
 games
-sports
 zilla fatu
 mcdonald's
 delivery
-fitness
 elina svitolina
 funeral director
 getty images
@@ -27,7 +33,6 @@ flamengo vs vitória
 joao fonseca
 ben shelton
 schools
-swimming
 jobs
 coffee
 the financial times
@@ -38,7 +43,6 @@ ronaldo
 cycling
 music
 liverpool transfer news fabrizio romano
-movies
 twitch
 chicago vs necaxa
 wnba
@@ -94,7 +98,3 @@ lamont roach
 tennis scores today
 ns&i
 jason arday
-el nino california shark activity
-dodgers vs red sox
-fire vs fever
-sid wilson
