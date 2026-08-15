@@ -1,13 +1,19 @@
+flights
+pizza
+sushi
+games
+sports
+news
+swimming
+fitness
+time
+movies
 bitcoin
 cristiano ronaldo
 brandweerman
 iga świątek
-swimming
-fitness
 cycling
 calendar
-sports
-games
 schuilplaats argentinie superrijken
 virus koeien
 bom ontploft plopsaland
@@ -21,7 +27,6 @@ meteoriet
 georgina rodriguez
 muk kinderdementie
 112 enschede
-time
 travel
 ns abonnement
 val van paard
@@ -36,8 +41,6 @@ niantic
 lieke klaver
 youri baas
 wilco van schaik
-flights
-news
 inter miami - monterrey
 morgan freeman
 stroomstoring venray
@@ -51,7 +54,6 @@ holstein kiel
 donald trump
 luchtmacht
 portugese oorlogsschepen kwallen
-movies
 music
 jobs
 broer
@@ -96,5 +98,3 @@ margot robbie
 ariana grande
 robert lewandowski
 vliegtuig neergestort
-flitspaal
-spider man
