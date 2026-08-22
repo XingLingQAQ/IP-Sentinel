@@ -1,3 +1,13 @@
+namaz vakti
+iphone 18 pro
+mustafa çulcu
+bursa hava durumu
+ikindi namazı
+tesla
+ezan
+music
+news
+events
 antalya
 ons altın
 kpss sınav yerleri
@@ -21,10 +31,8 @@ dhmi
 atv varmısın yokmusun tuğberk
 schools
 kerem aktürkoğlu
-events
 movies
 namaz vakitleri ankara
-news
 malatya namaz vakitleri
 yağmur
 türkiye haritası
@@ -73,7 +81,6 @@ bitcoin
 mersin hava durumu
 rize hava durumu
 giresun hava durumu
-bursa hava durumu
 malatya hava durumu
 iyi parti
 kocaeli hava durumu
@@ -91,10 +98,3 @@ dgs sonuçları
 memur emeklisine seyyanen zam
 mahinur özdemir göktaş
 düzce hava durumu
-jandarma
-ordu hava durumu
-meyve
-baraj
-yeni parti
-petrol
-yağış
