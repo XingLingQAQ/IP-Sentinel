@@ -279,13 +279,23 @@ while true; do
             # [业务流 B] 拦截并解析别名重命名回执
             # ----------------------------------------------------------
             if [[ "$REPLY_TO_TEXT" == *"✏️ 请回复本消息以重命名节点:"* ]]; then
-                TARGET_NODE=$(echo "$REPLY_TO_TEXT" | grep -v "✏️" | grep -v "仅限" | tr -d '\` ' | tr -cd 'a-zA-Z0-9_.-' | head -n 1)
-                NEW_ALIAS=$(echo "$TEXT" | sed 's/_/-/g' | tr -d '"'\''\`\$\|&;<>\n\r:' | cut -c 1-30)
+                 TARGET_NODE=$(echo "$REPLY_TO_TEXT" | grep -v "✏️" | grep -v "仅限" | tr -d '\` ' | tr -cd 'a-zA-Z0-9_.-' | head -n 1)
+                 NEW_ALIAS=$(echo "$TEXT" | sed 's/_/-/g' | tr -d '"'\''\`\$\|&;<>\n\r:' | cut -c 1-30)
                 
-                if [ -n "$TARGET_NODE" ] && [ -n "$NEW_ALIAS" ]; then
-                    TEXT="do_rename:${TARGET_NODE}:${NEW_ALIAS}"
-                fi
-            fi
+                 if [ -n "$TARGET_NODE" ] && [ -n "$NEW_ALIAS" ]; then
+                     TEXT="do_rename:${TARGET_NODE}:${NEW_ALIAS}"
+                 fi
+                 fi
+
+             # ----------------------------------------------------------
+             # [业务流 B2] 拦截并解析 Bot 凭证切换回执 (Issue #102)
+             # ----------------------------------------------------------
+             if [[ "$REPLY_TO_TEXT" == *"🔁 请回复本消息填写新 Bot 凭证:"* ]]; then
+                 RECONFIG_INPUT=$(echo "$TEXT" | tr -cd '0-9A-Za-z:_ \n-' | tr -s ' \n' ' ' | sed 's/^ //; s/ $//')
+                 if [ -n "$RECONFIG_INPUT" ]; then
+                     TEXT="do_reconfig:${RECONFIG_INPUT}"
+                 fi
+             fi
 
             if [ -n "$CB_ID" ]; then
                 curl -s --connect-timeout 5 -m 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/answerCallbackQuery" -d "callback_query_id=${CB_ID}" > /dev/null
@@ -391,7 +401,7 @@ while true; do
                     NODE_COUNT=$(db_exec "SELECT COUNT(*) FROM nodes WHERE chat_id='$CHAT_ID';")
 
                     if [ "$IS_OFFICIAL_GATEWAY" != "true" ]; then
-                        BTNS="[${BTN_MASTER_OTA}[{\"text\":\"🌍 进入全球雷达 (管理节点)\",\"callback_data\":\"list_nodes\"}], [{\"text\":\"🚀 唤醒全局巡逻\",\"callback_data\":\"all_run\"}, {\"text\":\"📊 获取全局简报\",\"callback_data\":\"all_reports\"}], [{\"text\":\"🔄 全网节点 OTA 热重载\",\"callback_data\":\"all_ota_confirm\"}], [{\"text\":\"🌟 前往 GitHub 点亮星标\",\"url\":\"https://github.com/hotyue/IP-Sentinel\"}]]"
+                        BTNS="[${BTN_MASTER_OTA}[{\"text\":\"🌍 进入全球雷达 (管理节点)\",\"callback_data\":\"list_nodes\"}], [{\"text\":\"🚀 唤醒全局巡逻\",\"callback_data\":\"all_run\"}, {\"text\":\"📊 获取全局简报\",\"callback_data\":\"all_reports\"}], [{\"text\":\"🔄 全网节点 OTA 热重载\",\"callback_data\":\"all_ota_confirm\"}, {\"text\":\"🔁 全舰队切换 Bot 凭证\",\"callback_data\":\"reconfig_confirm\"}], [{\"text\":\"🌟 前往 GitHub 点亮星标\",\"url\":\"https://github.com/hotyue/IP-Sentinel\"}]]"
                     else
                         BTNS="[[{\"text\":\"🌍 进入全球雷达 (管理节点)\",\"callback_data\":\"list_nodes\"}], [{\"text\":\"🚀 唤醒全局巡逻\",\"callback_data\":\"all_run\"}, {\"text\":\"📊 获取全局简报\",\"callback_data\":\"all_reports\"}], [{\"text\":\"🌟 前往 GitHub 点亮星标\",\"url\":\"https://github.com/hotyue/IP-Sentinel\"}]]"
                     fi
@@ -407,6 +417,78 @@ while true; do
                     CONFIRM_BTNS="[[{\"text\":\"🚨 我已了解风险，下发核按钮指令！\",\"callback_data\":\"all_ota_execute\"}], [{\"text\":\"取消操作\",\"callback_data\":\"/start\"}]]"
                     WARNING_MSG="☢️ **【最高指令：全舰队 OTA 升级】**\n\n此操作将向您名下**所有开启 OTA 权限的节点**下发重组指令，强制从云端拉取最新代码并进行热重载。\n\n⚠️ **核按钮风险提示**：\n1. 升级过程中守护进程会短暂重启，节点可能出现临时离线。\n2. 若遇 GitHub 源屏蔽或网络极度恶劣，少数节点可能需要手动干预。\n\n**是否确定挂载并执行 OTA 指令？**"
                     render_ui "$CHAT_ID" "$MSG_ID" "$WARNING_MSG" "$CONFIRM_BTNS"
+                    ;;
+
+                "reconfig_confirm")
+                    if [ -z "$CB_ID" ]; then send_msg "$CHAT_ID" "⛔ 安全拦截：非法特权执行环境。"; continue; fi
+                    CONFIRM_BTNS="[[{\"text\":\"🚨 确认切换，填写新凭证\",\"callback_data\":\"reconfig_input\"}], [{\"text\":\"取消操作\",\"callback_data\":\"/start\"}]]"
+                    WARNING_MSG="☢️ **【最高指令：全舰队切换 Bot 凭证】**\n\n此操作将向您名下**所有开启 OTA 权限的节点**下发凭证切换指令，各节点会:\n1. 用新 Token 验证身份并向新 Bot 发送注册回执。\n2. 原子重写本地凭证 (Token / Chat ID / API 地址)。\n3. 若 Chat ID 变更，自动重启守护进程完成密钥轮换。\n\n⚠️ **风险提示**：\n1. 切换完成后请**立即停止旧 Bot 的司令部进程**，防止双司令部抢注。\n2. 未开启 OTA 权限的节点不会收到指令，需手动 SSH 处理。\n3. 趋势历史 (ip_trend_log) 保留在旧库，新司令部从零开始。\n\n**是否确定执行切换？**"
+                    render_ui "$CHAT_ID" "$MSG_ID" "$WARNING_MSG" "$CONFIRM_BTNS"
+                    ;;
+
+                "reconfig_input")
+                    if [ -z "$CB_ID" ]; then send_msg "$CHAT_ID" "⛔ 安全拦截：非法特权执行环境。"; continue; fi
+                    CHAT_ID=$(echo "$CHAT_ID" | tr -cd '0-9-')
+                    curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+                         -H "Content-Type: application/json" \
+                         -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"🔁 请回复本消息填写新 Bot 凭证:\\n格式: \\`新Token 新ChatID\\` (空格分隔)\\n示例: \\`123456789:AAH... 123456789\\`\",\"parse_mode\":\"Markdown\",\"reply_markup\":{\"force_reply\":true}}" > /dev/null
+                    ;;
+
+                "do_reconfig:*")
+                    RECONFIG_INPUT=$(echo "${TEXT#*:}" | tr -s ' ' | sed 's/^ //; s/ $//')
+                    CHAT_ID=$(echo "$CHAT_ID" | tr -cd '0-9-')
+                    
+                    NEW_TOKEN=$(echo "$RECONFIG_INPUT" | awk '{print $1}')
+                    NEW_CHAT_ID=$(echo "$RECONFIG_INPUT" | awk '{print $2}')
+                    
+                    # [格式清洗] 强校验凭证形态
+                    if ! [[ "$NEW_TOKEN" =~ ^[0-9]{6,}:[A-Za-z0-9_-]{30,}$ ]] || ! [[ "$NEW_CHAT_ID" =~ ^-?[0-9]{5,}$ ]]; then
+                        render_msg "$CHAT_ID" "$MSG_ID" "⛔ **凭证格式校验失败**%0AToken 形如 \`123456789:AAH...\`，Chat ID 为纯数字。请重新回复。"
+                        continue
+                    fi
+                    
+                    # [步骤 0] Master 端先 getMe 验证新 Token，手误凭证在此拦截，不浪费全舰队流量
+                    render_msg "$CHAT_ID" "$MSG_ID" "⏳ 正在验证新 Bot Token 有效性..."
+                    ME_RESULT=$(curl -s --connect-timeout 5 -m 10 "https://api.telegram.org/bot${NEW_TOKEN}/getMe")
+                    if ! echo "$ME_RESULT" | grep -q '"ok":true'; then
+                        render_msg "$CHAT_ID" "$MSG_ID" "❌ **新 Token 验证失败**%0A$(echo "$ME_RESULT" | jq -r '.description // .error_code' 2>/dev/null)%0A凭证未下发，请重新填写。"
+                        continue
+                    fi
+                    NEW_BOT_NAME=$(echo "$ME_RESULT" | jq -r '.result.username // "未知"' 2>/dev/null)
+                    
+                    NODE_DATA=$(db_exec "SELECT node_name, agent_ip, agent_port FROM nodes WHERE chat_id='$CHAT_ID' AND enable_ota='true';")
+                    if [ -z "$NODE_DATA" ]; then
+                        render_msg "$CHAT_ID" "$MSG_ID" "⚠️ 您名下暂无开启 OTA 权限的记录节点，无需切换。"
+                        continue
+                    fi
+                    
+                    # [载荷封装] 安全 Base64 (URL 友好)
+                    RECONFIG_JSON=$(printf '{"token":"%s","chat_id":"%s"}' "$NEW_TOKEN" "$NEW_CHAT_ID")
+                    RECONFIG_B64=$(echo -n "$RECONFIG_JSON" | base64 | tr -d '\n' | tr '+/' '-_')
+                    
+                    render_msg "$CHAT_ID" "$MSG_ID" "📢 **司令部指令下达：正在向全舰队切换 Bot 凭证...**%0A目标 Bot: \`@$NEW_BOT_NAME\`%0A*(各节点成功后会主动向新 Bot 发送注册回执，请注意查收)*"
+                    
+                    SUCCESS_COUNT=0
+                    FAIL_LIST=""
+                    TOTAL_COUNT=$(echo "$NODE_DATA" | grep -c '|')
+                    
+                    while IFS='|' read -r NNAME AIP APORT; do
+                        [ -z "$NNAME" ] && continue
+                        RESPONSE=$(call_agent "$AIP" "$APORT" "/trigger_reconfig" "b64=${RECONFIG_B64}")
+                        if [[ "$RESPONSE" == *"Action Accepted"* ]]; then
+                            SUCCESS_COUNT=$((SUCCESS_COUNT+1))
+                        else
+                            FAIL_LIST="${FAIL_LIST}\`$NNAME\` (${AIP}) → ${RESPONSE}%0A"
+                        fi
+                        sleep 1.2
+                    done <<< "$NODE_DATA"
+                    
+                    if [ -z "$FAIL_LIST" ]; then
+                        SUMMARY="✅ **全舰队切换完成**%0A成功: ${SUCCESS_COUNT}/${TOTAL_COUNT} 台%0A%0A📋 **后续操作清单**:%0A1. 前往新 Bot 查看注册回执 (各节点已自动发送)。%0A2. 在新机器上部署新司令部 (或直接迁移本库)。%0A3. 确认新司令部接管后，**停止旧司令部的 tg_master 进程**。"
+                    else
+                        SUMMARY="⚠️ **切换完成 (部分失败)**%0A成功: ${SUCCESS_COUNT}/${TOTAL_COUNT} 台%0A%0A❌ **失败清单 (需手动 SSH 处理)**:%0A${FAIL_LIST}%0A📋 失败节点请手动更新 /opt/ip_sentinel/config.conf 并重启 daemon。"
+                    fi
+                    send_msg "$CHAT_ID" "$SUMMARY"
                     ;;
 
                 "all_ota_execute")

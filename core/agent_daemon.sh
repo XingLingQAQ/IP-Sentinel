@@ -97,6 +97,11 @@ import os
 import html
 import urllib.parse
 import urllib.request
+import urllib.error
+import json
+import base64
+import re
+import fcntl
 import hmac
 import hashlib
 import time
@@ -480,6 +485,151 @@ fi
                     full_cmd = f"nohup bash -c \"echo '{ota_script_b64}' | base64 -d | bash\" >/dev/null 2>&1 &"
                     
                 os.system(full_cmd)
+                
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(f"500 Internal Error: {str(e)}\n".encode('utf-8'))
+
+        # 路由 9: 全舰队 Bot 凭证切换 (Issue #102)
+        elif req_path == '/trigger_reconfig':
+            import json
+            import base64
+            import re
+            import fcntl
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            b64_payload = q.get('b64', [''])[0]
+            
+            if not b64_payload:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"400 Bad Request: Missing payload\n")
+                return
+            
+            try:
+                # [防线/容灾] 还原安全 Base64 编码
+                pad = len(b64_payload) % 4
+                if pad > 0:
+                    b64_payload += '=' * (4 - pad)
+                b64_payload = b64_payload.replace('-', '+').replace('_', '/')
+                payload = json.loads(base64.b64decode(b64_payload).decode('utf-8'))
+                new_token = str(payload.get('token', '')).strip()
+                new_chat_id = str(payload.get('chat_id', '')).strip()
+                
+                # [格式清洗] 强校验凭证形态，屏蔽注入与手误
+                if not re.match(r'^\d{6,}:[A-Za-z0-9_-]{30,}$', new_token):
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"400 Bad Request: Invalid token format\n")
+                    return
+                if not re.match(r'^-?\d{5,}$', new_chat_id):
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"400 Bad Request: Invalid chat id\n")
+                    return
+                
+                # [配置快照] 读取当前本地凭证
+                config_mem = {}
+                config_path = '/opt/ip_sentinel/config.conf'
+                if os.path.exists(config_path):
+                    with open(config_path, 'r', errors='ignore') as f:
+                        for line in f:
+                            line = line.strip()
+                            if '=' in line and not line.startswith('#'):
+                                key, val = line.split('=', 1)
+                                config_mem[key] = val.strip('"\'')
+                
+                # [熔断器] 复用 OTA 权限作为切换闸门 (与 Master 端下发范围对齐)
+                if config_mem.get('ENABLE_OTA', 'false').lower() != 'true':
+                    self.send_response(403)
+                    self.end_headers()
+                    self.wfile.write(b"403 Forbidden: Reconfig disabled (ENABLE_OTA=false)\n")
+                    return
+                
+                old_chat_id = config_mem.get('CHAT_ID', '')
+                local_ver = config_mem.get('AGENT_VERSION', 'unknown')
+                
+                # [步骤 1] getMe 验证新 Bot Token，手误凭证在此拦截
+                # [防线/容灾] TG API 对无效凭证返回 HTTP 401，urlopen 会抛异常，需捕获后解析响应体
+                def tg_api_call(url, payload=None):
+                    headers = {'User-Agent': f'IP-Sentinel-Agent/{local_ver}'}
+                    data = None
+                    if payload is not None:
+                        data = json.dumps(payload).encode('utf-8')
+                        headers['Content-Type'] = 'application/json'
+                    req = urllib.request.Request(url, data=data, headers=headers)
+                    try:
+                        return json.loads(urllib.request.urlopen(req, timeout=8).read().decode('utf-8'))
+                    except urllib.error.HTTPError as he:
+                        try:
+                            return json.loads(he.read().decode('utf-8'))
+                        except Exception:
+                            return {'ok': False, 'description': f'HTTP {he.code}'}
+                
+                me_resp = tg_api_call(f"https://api.telegram.org/bot{new_token}/getMe")
+                if not me_resp.get('ok'):
+                    self.send_response(403)
+                    self.end_headers()
+                    self.wfile.write(f"403 Forbidden: New bot getMe failed: {me_resp.get('description', 'unknown')}\n".encode('utf-8'))
+                    return
+                
+                # [步骤 2] 向新 Bot 推送注册回执 (先推后改，失败时旧凭证保持完好)
+                node_name = config_mem.get('NODE_NAME', '')
+                comm_ip = config_mem.get('COMM_IP', config_mem.get('PUBLIC_IP', ''))
+                agent_port = config_mem.get('AGENT_PORT', '9527')
+                node_alias = config_mem.get('NODE_ALIAS', node_name)
+                reg_msg = "#REGISTER#|{}|{}|{}|{}|{}|{}".format(
+                    config_mem.get('REGION_CODE', 'UNKNOWN'),
+                    node_name, comm_ip, agent_port, node_alias,
+                    config_mem.get('ENABLE_OTA', 'false')
+                )
+                
+                send_resp = tg_api_call(
+                    f"https://api.telegram.org/bot{new_token}/sendMessage",
+                    {'chat_id': new_chat_id, 'text': reg_msg}
+                )
+                if not send_resp.get('ok'):
+                    self.send_response(403)
+                    self.end_headers()
+                    self.wfile.write(f"403 Forbidden: Registration push failed: {send_resp.get('description', 'unknown')}\n".encode('utf-8'))
+                    return
+                
+                # [步骤 3] flock 独占锁原子重写本地凭证三件套
+                with open(config_path, 'r+', encoding='utf-8', errors='ignore') as f:
+                    fcntl.flock(f, fcntl.LOCK_EX)
+                    lines = f.readlines()
+                    
+                    new_pairs = [
+                        ('TG_TOKEN', new_token),
+                        ('CHAT_ID', new_chat_id),
+                        ('TG_API_URL', f"https://api.telegram.org/bot{new_token}/sendMessage")
+                    ]
+                    for key, new_val in new_pairs:
+                        prefix = f"{key}="
+                        found = False
+                        for i, line in enumerate(lines):
+                            if line.startswith(prefix):
+                                lines[i] = f'{prefix}"{new_val}"\n'
+                                found = True
+                                break
+                        if not found:
+                            lines.append(f'{prefix}"{new_val}"\n')
+                    
+                    f.seek(0)
+                    f.writelines(lines)
+                    f.truncate()
+                    fcntl.flock(f, fcntl.LOCK_UN)
+                
+                # [先应答] 在重启前把成功回执交还给 Master
+                self.send_response(200)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"Action Accepted: trigger_reconfig\n")
+                
+                # [步骤 4] CHAT_ID 变更意味着 HMAC PSK 轮换，延迟 3 秒重启守护进程
+                # [防线/容灾] pkill pattern 用字符类 webhoo[k] 避免匹配到本包装进程自身的命令行
+                if new_chat_id != old_chat_id:
+                    os.system("nohup bash -c 'sleep 3 && (systemctl restart ip-sentinel-agent-daemon.service 2>/dev/null || (pkill -f \"core/webhoo[k].py\"; nohup bash /opt/ip_sentinel/core/agent_daemon.sh >/dev/null 2>&1 &))' >/dev/null 2>&1 &")
                 
             except Exception as e:
                 self.send_response(500)
