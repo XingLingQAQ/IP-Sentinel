@@ -289,9 +289,19 @@ while true; do
 
              # ----------------------------------------------------------
              # [业务流 B2] 拦截并解析 Bot 凭证切换回执 (Issue #102)
+             # [双触发] ① 引用回复提示消息 ② 文本形态直接命中 "Token + ChatID"
+             #          (客户端未挂引用时兜底，防止凭证消息被静默吞掉)
              # ----------------------------------------------------------
+             RECONFIG_CANDIDATE=""
              if [[ "$REPLY_TO_TEXT" == *"🔁 请回复本消息填写新 Bot 凭证:"* ]]; then
-                 RECONFIG_INPUT=$(echo "$TEXT" | tr -cd '0-9A-Za-z:_ \n-' | tr -s ' \n' ' ' | sed 's/^ //; s/ $//')
+                 RECONFIG_CANDIDATE="$TEXT"
+             elif [[ "$TEXT" =~ ^[0-9]{6,}:[A-Za-z0-9_-]{30,}[[:space:]]+-?[0-9]{5,}[[:space:]]*$ ]] || \
+                  [[ "$TEXT" =~ ^[0-9]{6,}:[A-Za-z0-9_-]{30,}[[:space:]]*$ ]]; then
+                 RECONFIG_CANDIDATE="$TEXT"
+             fi
+             if [ -n "$RECONFIG_CANDIDATE" ]; then
+                 # [格式归一] 支持上下两行 (Token/ChatID) 或一行空格分隔
+                 RECONFIG_INPUT=$(echo "$RECONFIG_CANDIDATE" | tr '\n' ' ' | tr -cd '0-9A-Za-z:_ -' | tr -s ' ' | sed 's/^ //; s/ $//')
                  if [ -n "$RECONFIG_INPUT" ]; then
                      TEXT="do_reconfig:${RECONFIG_INPUT}"
                  fi
@@ -429,9 +439,10 @@ while true; do
                 "reconfig_input")
                     if [ -z "$CB_ID" ]; then send_msg "$CHAT_ID" "⛔ 安全拦截：非法特权执行环境。"; continue; fi
                     CHAT_ID=$(echo "$CHAT_ID" | tr -cd '0-9-')
+                    # [Issue #102 修复] 原 \\` 在双引号内触发反引号命令替换，格式文本被吞；改用纯文本两行式提示
                     curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
                          -H "Content-Type: application/json" \
-                         -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"🔁 请回复本消息填写新 Bot 凭证:\\n格式: \\`新Token 新ChatID\\` (空格分隔)\\n示例: \\`123456789:AAH... 123456789\\`\",\"parse_mode\":\"Markdown\",\"reply_markup\":{\"force_reply\":true}}" > /dev/null
+                         -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"🔁 请回复本消息填写新 Bot 凭证:\\n第一行: 新 Token (形如 123456789:AAH...)\\n第二行: 新 Chat ID (形如 -1001234567890)\\n*(也支持一行空格分隔)*\",\"parse_mode\":\"Markdown\",\"reply_markup\":{\"force_reply\":true}}" > /dev/null
                     ;;
 
                 "do_reconfig:*")
