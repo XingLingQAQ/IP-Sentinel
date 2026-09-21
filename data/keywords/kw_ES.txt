@@ -1,3 +1,13 @@
+campus
+rag
+gemini
+sm
+rae
+veranillo de san miguel
+elecciones berlin
+drive
+teams
+hijo cindy crawford
 terremoto sismo temblor hoy epicentro
 el español
 la voz de galicia
@@ -29,7 +39,6 @@ censo electoral
 ayuntamiento
 oscar puente
 imserso
-teams
 alcalde de madrid
 pogoda
 el tiempo en malaga
@@ -86,15 +95,6 @@ endrick
 mar espinar
 sara carbonero
 informe pisa
-drive
 centro nacional de inteligencia
 michael caine
 policia nacional
-la diada
-9/11
-ismail kartal
-olivia oras
-la vuelta ciclista
-talgo
-campeón
-lewandowski
