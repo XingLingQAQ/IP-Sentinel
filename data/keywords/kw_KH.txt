@@ -1,3 +1,5 @@
+bomb threat
+forex factory
 fraud
 weather
 adam robinson
@@ -50,7 +52,6 @@ liverpool vs chelsea
 man city vs brighton
 efl cup
 ac milan
-forex factory
 weather tomorrow
 israeli election results
 apple
@@ -97,4 +98,3 @@ laliga
 real madrid vs sevilla
 arsenal
 nottm forest vs arsenal
-leeds vs man utd
